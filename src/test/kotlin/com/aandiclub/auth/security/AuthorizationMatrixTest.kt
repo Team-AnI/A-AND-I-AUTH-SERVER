@@ -320,6 +320,49 @@ class AuthorizationMatrixTest : StringSpec() {
 					.jsonPath("$.data.role").isEqualTo("ORGANIZER")
 			}
 
+			"PATCH /v1/admin/users denies USER role" {
+				val targetUserId = UUID.randomUUID()
+				val token = accessToken(UUID.randomUUID(), "tester_user_patch_denied", UserRole.USER)
+				webClient().patch()
+					.uri("/v1/admin/users")
+					.headers { it.setBearerAuth(token) }
+					.contentType(MediaType.APPLICATION_JSON)
+					.bodyValue("""{"userId":"$targetUserId","cohort":5}""")
+					.exchange()
+					.expectStatus().isForbidden
+			}
+
+			"PATCH /v1/admin/users denies ORGANIZER role" {
+				val targetUserId = UUID.randomUUID()
+				val token = accessToken(UUID.randomUUID(), "tester_organizer_patch_denied", UserRole.ORGANIZER)
+				webClient().patch()
+					.uri("/v1/admin/users")
+					.headers { it.setBearerAuth(token) }
+					.contentType(MediaType.APPLICATION_JSON)
+					.bodyValue("""{"userId":"$targetUserId","userTrack":"FL"}""")
+					.exchange()
+					.expectStatus().isForbidden
+			}
+
+			"PATCH /v1/admin/users allows ADMIN role" {
+				val targetUserId = UUID.randomUUID()
+				insertUser(targetUserId, "target_patch_user", UserRole.USER)
+				val token = accessToken(UUID.randomUUID(), "tester_admin_patch_allowed", UserRole.ADMIN)
+
+				webClient().patch()
+					.uri("/v1/admin/users")
+					.headers { it.setBearerAuth(token) }
+					.contentType(MediaType.APPLICATION_JSON)
+					.bodyValue("""{"userId":"$targetUserId","userTrack":"FL"}""")
+					.exchange()
+					.expectStatus().isOk
+					.expectBody()
+					.jsonPath("$.success").isEqualTo(true)
+					.jsonPath("$.data.id").isEqualTo(targetUserId.toString())
+					.jsonPath("$.data.userTrack").isEqualTo("FL")
+					.jsonPath("$.data.cohort").isEqualTo(0)
+			}
+
 			"DELETE /v1/admin/users denies USER role" {
 				val targetUserId = UUID.randomUUID()
 				val token = accessToken(UUID.randomUUID(), "tester_user_delete_denied", UserRole.USER)

@@ -6,9 +6,10 @@ import com.aandiclub.auth.admin.web.dto.CreateAdminUserResponse
 import com.aandiclub.auth.admin.web.dto.InviteMailRequest
 import com.aandiclub.auth.admin.web.dto.InviteMailResponse
 import com.aandiclub.auth.admin.web.dto.ResetPasswordResponse
+import com.aandiclub.auth.admin.web.dto.UpdateUserRequest
+import com.aandiclub.auth.admin.web.dto.UpdateUserResponse
 import com.aandiclub.auth.admin.web.dto.UpdateUserRoleResponse
 import com.aandiclub.auth.user.domain.UserRole
-import com.aandiclub.auth.user.domain.UserTrack
 import reactor.core.publisher.Mono
 import java.util.UUID
 
@@ -16,7 +17,8 @@ interface AdminService {
 	fun getUsers(): Mono<List<AdminUserSummary>>
 	fun createUser(request: CreateAdminUserRequest): Mono<CreateAdminUserResponse>
 	fun resetPassword(userId: UUID): Mono<ResetPasswordResponse>
-	fun updateUserRole(targetUserId: UUID, role: UserRole, userTrack: UserTrack?, cohort: Int?, actorUserId: UUID): Mono<UpdateUserRoleResponse>
+	fun updateUserRole(targetUserId: UUID, role: UserRole, actorUserId: UUID): Mono<UpdateUserRoleResponse>
+	fun updateUser(request: UpdateUserRequest, actorUserId: UUID): Mono<UpdateUserResponse>
 	fun deleteUser(targetUserId: UUID, actorUserId: UUID): Mono<Void>
 	fun sendInviteMail(request: InviteMailRequest): Mono<InviteMailResponse>
 }

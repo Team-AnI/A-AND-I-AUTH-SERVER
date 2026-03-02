@@ -11,6 +11,7 @@ import com.aandiclub.auth.admin.service.impl.AdminServiceImpl
 import com.aandiclub.auth.admin.web.dto.CreateAdminUserRequest
 import com.aandiclub.auth.admin.web.dto.InviteMailRequest
 import com.aandiclub.auth.admin.web.dto.ProvisionType
+import com.aandiclub.auth.admin.web.dto.UpdateUserRequest
 import com.aandiclub.auth.common.error.AppException
 import com.aandiclub.auth.common.error.ErrorCode
 import com.aandiclub.auth.security.service.PasswordService
@@ -201,6 +202,7 @@ class AdminServiceImplTest : FunSpec({
 				cohort = 4,
 				cohortOrder = 10,
 				publicCode = "#NO410",
+				nickname = "테스트닉",
 				isActive = false,
 				forcePasswordChange = true,
 			),
@@ -215,6 +217,7 @@ class AdminServiceImplTest : FunSpec({
 				users.size shouldBe 1
 				users[0].inviteLink shouldBe "https://your-domain.com/activate?token=raw-token"
 				users[0].publicCode shouldBe "#NO410"
+				users[0].nickname shouldBe "테스트닉"
 			}
 			.verifyComplete()
 	}
@@ -476,7 +479,7 @@ class AdminServiceImplTest : FunSpec({
 			originalUser.copy(role = UserRole.ORGANIZER, userTrack = UserTrack.NO, publicCode = "#OR401"),
 		)
 
-		StepVerifier.create(service.updateUserRole(targetId, UserRole.ORGANIZER, null, null, actorId))
+		StepVerifier.create(service.updateUserRole(targetId, UserRole.ORGANIZER, actorId))
 			.assertNext { response ->
 				response.id shouldBe targetId
 				response.username shouldBe "member_01"
@@ -486,10 +489,11 @@ class AdminServiceImplTest : FunSpec({
 			.verifyComplete()
 
 		savedSlot.captured.role shouldBe UserRole.ORGANIZER
+		savedSlot.captured.userTrack shouldBe UserTrack.NO
 		savedSlot.captured.publicCode shouldBe "#OR401"
 	}
 
-	test("updateUserRole should apply USER track and regenerate public code") {
+	test("updateUser should apply USER track and regenerate public code") {
 		val actorId = UUID.randomUUID()
 		val targetId = UUID.randomUUID()
 		val originalUser = UserEntity(
@@ -508,7 +512,12 @@ class AdminServiceImplTest : FunSpec({
 			originalUser.copy(userTrack = UserTrack.FL, publicCode = "#FL403"),
 		)
 
-		StepVerifier.create(service.updateUserRole(targetId, UserRole.USER, UserTrack.FL, null, actorId))
+		StepVerifier.create(
+			service.updateUser(
+				request = UpdateUserRequest(userId = targetId, userTrack = UserTrack.FL),
+				actorUserId = actorId,
+			),
+		)
 			.assertNext { response ->
 				response.role shouldBe UserRole.USER
 				response.userTrack shouldBe UserTrack.FL
@@ -517,7 +526,7 @@ class AdminServiceImplTest : FunSpec({
 			.verifyComplete()
 	}
 
-	test("updateUserRole should update cohort and regenerate cohortOrder/publicCode") {
+	test("updateUser should update cohort and regenerate cohortOrder/publicCode") {
 		val actorId = UUID.randomUUID()
 		val targetId = UUID.randomUUID()
 		val originalUser = UserEntity(
@@ -536,7 +545,12 @@ class AdminServiceImplTest : FunSpec({
 		every { usernameSequenceService.nextCohortOrderSequence(5) } returns Mono.just(1)
 		every { userRepository.save(capture(savedSlot)) } answers { Mono.just(firstArg()) }
 
-		StepVerifier.create(service.updateUserRole(targetId, UserRole.USER, UserTrack.FL, 5, actorId))
+		StepVerifier.create(
+			service.updateUser(
+				request = UpdateUserRequest(userId = targetId, userTrack = UserTrack.FL, cohort = 5),
+				actorUserId = actorId,
+			),
+		)
 			.assertNext { response ->
 				response.role shouldBe UserRole.USER
 				response.userTrack shouldBe UserTrack.FL
@@ -553,9 +567,25 @@ class AdminServiceImplTest : FunSpec({
 
 	test("updateUserRole should reject self role change") {
 		val adminId = UUID.randomUUID()
-		StepVerifier.create(service.updateUserRole(adminId, UserRole.USER, null, null, adminId))
+		StepVerifier.create(service.updateUserRole(adminId, UserRole.USER, adminId))
 			.expectErrorSatisfies { ex ->
 				(ex as AppException).errorCode shouldBe ErrorCode.FORBIDDEN
+			}
+			.verify()
+	}
+
+	test("updateUser should reject empty update payload") {
+		val actorId = UUID.randomUUID()
+		val targetId = UUID.randomUUID()
+
+		StepVerifier.create(
+			service.updateUser(
+				request = UpdateUserRequest(userId = targetId),
+				actorUserId = actorId,
+			),
+		)
+			.expectErrorSatisfies { ex ->
+				(ex as AppException).errorCode shouldBe ErrorCode.INVALID_REQUEST
 			}
 			.verify()
 	}

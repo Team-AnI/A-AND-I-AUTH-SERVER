@@ -8,6 +8,8 @@ import com.aandiclub.auth.admin.web.dto.DeleteUserRequest
 import com.aandiclub.auth.admin.web.dto.InviteMailRequest
 import com.aandiclub.auth.admin.web.dto.InviteMailResponse
 import com.aandiclub.auth.admin.web.dto.ResetPasswordResponse
+import com.aandiclub.auth.admin.web.dto.UpdateUserRequest
+import com.aandiclub.auth.admin.web.dto.UpdateUserResponse
 import com.aandiclub.auth.admin.web.dto.UpdateUserRoleRequest
 import com.aandiclub.auth.admin.web.dto.UpdateUserRoleResponse
 import com.aandiclub.auth.common.api.ApiResponse
@@ -58,10 +60,16 @@ class AdminController(
 		adminService.updateUserRole(
 			targetUserId = request.userId,
 			role = request.role,
-			userTrack = request.userTrack,
-			cohort = request.cohort,
 			actorUserId = actor.userId,
 		).map { ApiResponse.success(it) }
+
+	@PatchMapping("/users")
+	fun updateUser(
+		@Valid @RequestBody request: UpdateUserRequest,
+		@AuthenticationPrincipal actor: AuthenticatedUser,
+	): Mono<ApiResponse<UpdateUserResponse>> =
+		adminService.updateUser(request = request, actorUserId = actor.userId)
+			.map { ApiResponse.success(it) }
 
 	@DeleteMapping("/users")
 	fun deleteUser(
