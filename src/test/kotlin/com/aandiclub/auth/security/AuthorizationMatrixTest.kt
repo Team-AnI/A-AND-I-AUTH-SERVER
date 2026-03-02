@@ -363,6 +363,24 @@ class AuthorizationMatrixTest : StringSpec() {
 					.jsonPath("$.data.cohort").isEqualTo(0)
 			}
 
+			"PATCH /v1/admin/users allows ADMIN role update by role field" {
+				val targetUserId = UUID.randomUUID()
+				insertUser(targetUserId, "target_patch_role_user", UserRole.USER)
+				val token = accessToken(UUID.randomUUID(), "tester_admin_patch_role_allowed", UserRole.ADMIN)
+
+				webClient().patch()
+					.uri("/v1/admin/users")
+					.headers { it.setBearerAuth(token) }
+					.contentType(MediaType.APPLICATION_JSON)
+					.bodyValue("""{"userId":"$targetUserId","role":"ORGANIZER"}""")
+					.exchange()
+					.expectStatus().isOk
+					.expectBody()
+					.jsonPath("$.success").isEqualTo(true)
+					.jsonPath("$.data.id").isEqualTo(targetUserId.toString())
+					.jsonPath("$.data.role").isEqualTo("ORGANIZER")
+			}
+
 			"DELETE /v1/admin/users denies USER role" {
 				val targetUserId = UUID.randomUUID()
 				val token = accessToken(UUID.randomUUID(), "tester_user_delete_denied", UserRole.USER)

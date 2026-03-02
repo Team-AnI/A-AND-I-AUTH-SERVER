@@ -62,6 +62,7 @@ data class UpdateUserRoleRequest(
 
 data class UpdateUserRequest(
 	val userId: UUID,
+	val role: UserRole? = null,
 	val userTrack: UserTrack? = null,
 	@field:Min(0, message = "cohort must be between 0 and 9")
 	@field:Max(9, message = "cohort must be between 0 and 9")

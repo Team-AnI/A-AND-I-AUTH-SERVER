@@ -19,6 +19,8 @@ import com.aandiclub.auth.security.token.TokenHashService
 import com.aandiclub.auth.user.domain.UserEntity
 import com.aandiclub.auth.user.domain.UserRole
 import com.aandiclub.auth.user.domain.UserTrack
+import com.aandiclub.auth.user.event.UserProfileEventPublisher
+import com.aandiclub.auth.user.event.UserProfileUpdatedEvent
 import com.aandiclub.auth.user.repository.UserRepository
 import com.aandiclub.auth.user.service.UserPublicCodeService
 import io.kotest.core.spec.style.FunSpec
@@ -43,6 +45,7 @@ class AdminServiceImplTest : FunSpec({
 	val credentialGenerator = mockk<CredentialGenerator>()
 	val passwordService = mockk<PasswordService>()
 	val tokenHashService = mockk<TokenHashService>()
+	val userProfileEventPublisher = mockk<UserProfileEventPublisher>()
 	val inviteMailService = mockk<InviteMailService>()
 	val clock = Clock.fixed(Instant.parse("2026-02-18T00:00:00Z"), ZoneOffset.UTC)
 
@@ -55,6 +58,7 @@ class AdminServiceImplTest : FunSpec({
 		passwordService = passwordService,
 		tokenHashService = tokenHashService,
 		userPublicCodeService = UserPublicCodeService(),
+		userProfileEventPublisher = userProfileEventPublisher,
 		inviteProperties = InviteProperties(
 			activationBaseUrl = "https://your-domain.com/activate",
 			expirationHours = 72,
@@ -62,6 +66,7 @@ class AdminServiceImplTest : FunSpec({
 		inviteMailService = inviteMailService,
 		clock = clock,
 	)
+	every { userProfileEventPublisher.publishUserProfileUpdated(any()) } returns Mono.empty()
 
 	test("createUser PASSWORD should generate temporary password and public code") {
 		val savedUser = UserEntity(
@@ -473,11 +478,13 @@ class AdminServiceImplTest : FunSpec({
 			publicCode = "#SP401",
 		)
 		val savedSlot = slot<UserEntity>()
+		val eventSlot = slot<UserProfileUpdatedEvent>()
 
 		every { userRepository.findById(targetId) } returns Mono.just(originalUser)
 		every { userRepository.save(capture(savedSlot)) } returns Mono.just(
 			originalUser.copy(role = UserRole.ORGANIZER, userTrack = UserTrack.NO, publicCode = "#OR401"),
 		)
+		every { userProfileEventPublisher.publishUserProfileUpdated(capture(eventSlot)) } returns Mono.empty()
 
 		StepVerifier.create(service.updateUserRole(targetId, UserRole.ORGANIZER, actorId))
 			.assertNext { response ->
@@ -491,6 +498,9 @@ class AdminServiceImplTest : FunSpec({
 		savedSlot.captured.role shouldBe UserRole.ORGANIZER
 		savedSlot.captured.userTrack shouldBe UserTrack.NO
 		savedSlot.captured.publicCode shouldBe "#OR401"
+		eventSlot.captured.userId shouldBe targetId.toString()
+		eventSlot.captured.role shouldBe UserRole.ORGANIZER.name
+		eventSlot.captured.publicCode shouldBe "#OR401"
 	}
 
 	test("updateUser should apply USER track and regenerate public code") {
@@ -526,6 +536,46 @@ class AdminServiceImplTest : FunSpec({
 			.verifyComplete()
 	}
 
+	test("updateUser should update role and recalculate track/public code") {
+		val actorId = UUID.randomUUID()
+		val targetId = UUID.randomUUID()
+		val originalUser = UserEntity(
+			id = targetId,
+			username = "member_02b",
+			passwordHash = "h1",
+			role = UserRole.USER,
+			userTrack = UserTrack.SP,
+			cohort = 4,
+			cohortOrder = 2,
+			publicCode = "#SP402",
+		)
+		val eventSlot = slot<UserProfileUpdatedEvent>()
+
+		every { userRepository.findById(targetId) } returns Mono.just(originalUser)
+		every { userRepository.save(any()) } returns Mono.just(
+			originalUser.copy(role = UserRole.ORGANIZER, userTrack = UserTrack.NO, publicCode = "#OR402"),
+		)
+		every { userProfileEventPublisher.publishUserProfileUpdated(capture(eventSlot)) } returns Mono.empty()
+
+		StepVerifier.create(
+			service.updateUser(
+				request = UpdateUserRequest(userId = targetId, role = UserRole.ORGANIZER, userTrack = UserTrack.FL),
+				actorUserId = actorId,
+			),
+		)
+			.assertNext { response ->
+				response.role shouldBe UserRole.ORGANIZER
+				response.userTrack shouldBe UserTrack.NO
+				response.publicCode shouldBe "#OR402"
+			}
+			.verifyComplete()
+
+		eventSlot.captured.userId shouldBe targetId.toString()
+		eventSlot.captured.role shouldBe UserRole.ORGANIZER.name
+		eventSlot.captured.userTrack shouldBe UserTrack.NO.name
+		eventSlot.captured.publicCode shouldBe "#OR402"
+	}
+
 	test("updateUser should update cohort and regenerate cohortOrder/publicCode") {
 		val actorId = UUID.randomUUID()
 		val targetId = UUID.randomUUID()
@@ -540,10 +590,12 @@ class AdminServiceImplTest : FunSpec({
 			publicCode = "#NO403",
 		)
 		val savedSlot = slot<UserEntity>()
+		val eventSlot = slot<UserProfileUpdatedEvent>()
 
 		every { userRepository.findById(targetId) } returns Mono.just(originalUser)
 		every { usernameSequenceService.nextCohortOrderSequence(5) } returns Mono.just(1)
 		every { userRepository.save(capture(savedSlot)) } answers { Mono.just(firstArg()) }
+		every { userProfileEventPublisher.publishUserProfileUpdated(capture(eventSlot)) } returns Mono.empty()
 
 		StepVerifier.create(
 			service.updateUser(
@@ -563,6 +615,10 @@ class AdminServiceImplTest : FunSpec({
 		savedSlot.captured.cohort shouldBe 5
 		savedSlot.captured.cohortOrder shouldBe 1
 		savedSlot.captured.publicCode shouldBe "#FL501"
+		eventSlot.captured.userId shouldBe targetId.toString()
+		eventSlot.captured.userTrack shouldBe UserTrack.FL.name
+		eventSlot.captured.cohort shouldBe 5
+		eventSlot.captured.publicCode shouldBe "#FL501"
 	}
 
 	test("updateUserRole should reject self role change") {

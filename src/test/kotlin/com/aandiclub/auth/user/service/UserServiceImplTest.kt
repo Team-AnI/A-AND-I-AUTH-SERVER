@@ -131,6 +131,10 @@ class UserServiceImplTest : FunSpec({
 		verify(atLeast = 1) { userProfileEventPublisher.publishUserProfileUpdated(any()) }
 		eventSlot.captured.type shouldBe "UserProfileUpdated"
 		eventSlot.captured.userId shouldBe userId.toString()
+		eventSlot.captured.username shouldBe "user_02"
+		eventSlot.captured.role shouldBe UserRole.USER.name
+		eventSlot.captured.userTrack shouldBe UserTrack.NO.name
+		eventSlot.captured.publicCode shouldBe "#NO001"
 		eventSlot.captured.nickname shouldBe "new profile"
 		eventSlot.captured.profileImageUrl shouldBe "https://images.aandiclub.com/old.png"
 		eventSlot.captured.version shouldBe 1L
@@ -280,6 +284,10 @@ class UserServiceImplTest : FunSpec({
 		verify(atLeast = 1) { userProfileEventPublisher.publishUserProfileUpdated(any()) }
 		eventSlot.captured.type shouldBe "UserProfileUpdated"
 		eventSlot.captured.userId shouldBe userId.toString()
+		eventSlot.captured.username shouldBe "user_07"
+		eventSlot.captured.role shouldBe UserRole.USER.name
+		eventSlot.captured.userTrack shouldBe UserTrack.NO.name
+		eventSlot.captured.publicCode shouldBe "#NO001"
 		eventSlot.captured.profileImageUrl shouldBe newProfileImageUrl
 		eventSlot.captured.version shouldBe 1L
 	}

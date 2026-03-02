@@ -26,6 +26,8 @@ import com.aandiclub.auth.security.token.TokenHashService
 import com.aandiclub.auth.user.domain.UserEntity
 import com.aandiclub.auth.user.domain.UserRole
 import com.aandiclub.auth.user.domain.UserTrack
+import com.aandiclub.auth.user.event.UserProfileEventPublisher
+import com.aandiclub.auth.user.event.UserProfileUpdatedEvent
 import com.aandiclub.auth.user.repository.UserRepository
 import com.aandiclub.auth.user.service.UserPublicCodeService
 import org.slf4j.LoggerFactory
@@ -46,6 +48,7 @@ class AdminServiceImpl(
 	private val passwordService: PasswordService,
 	private val tokenHashService: TokenHashService,
 	private val userPublicCodeService: UserPublicCodeService,
+	private val userProfileEventPublisher: UserProfileEventPublisher,
 	private val inviteProperties: InviteProperties,
 	private val inviteMailService: InviteMailService,
 	private val clock: Clock = Clock.systemUTC(),
@@ -123,25 +126,28 @@ class AdminServiceImpl(
 						userTrack = resolvedTrack,
 						publicCode = recalculatedPublicCode,
 					),
-				).map { saved ->
-					logger.warn(
-						"security_audit event=admin_user_role_changed user_id={} username={} old_role={} new_role={} public_code={}",
-						saved.id,
-						saved.username,
-						user.role,
-						saved.role,
-						saved.publicCode,
-					)
-					UpdateUserRoleResponse(
-						id = requireNotNull(saved.id),
-						username = saved.username,
-						role = saved.role,
-						userTrack = saved.userTrack,
-						cohort = saved.cohort,
-						cohortOrder = saved.cohortOrder,
-						publicCode = saved.publicCode,
-					)
-				}
+				).flatMap { saved ->
+					userProfileEventPublisher.publishUserProfileUpdated(toUserProfileUpdatedEvent(saved))
+						.thenReturn(saved)
+				}.map { saved ->
+				logger.warn(
+					"security_audit event=admin_user_role_changed user_id={} username={} old_role={} new_role={} public_code={}",
+					saved.id,
+					saved.username,
+					user.role,
+					saved.role,
+					saved.publicCode,
+				)
+				UpdateUserRoleResponse(
+					id = requireNotNull(saved.id),
+					username = saved.username,
+					role = saved.role,
+					userTrack = saved.userTrack,
+					cohort = saved.cohort,
+					cohortOrder = saved.cohortOrder,
+					publicCode = saved.publicCode,
+				)
+			}
 			}
 	}
 
@@ -149,7 +155,7 @@ class AdminServiceImpl(
 		if (request.userId == actorUserId) {
 			return Mono.error(AppException(ErrorCode.FORBIDDEN, "Admin cannot update own account via admin endpoint."))
 		}
-		if (request.userTrack == null && request.cohort == null && request.nickname == null) {
+		if (request.role == null && request.userTrack == null && request.cohort == null && request.nickname == null) {
 			return Mono.error(AppException(ErrorCode.INVALID_REQUEST, "At least one updatable field is required."))
 		}
 
@@ -171,6 +177,7 @@ class AdminServiceImpl(
 		return userRepository.findById(request.userId)
 			.switchIfEmpty(Mono.error(AppException(ErrorCode.NOT_FOUND, "User not found.")))
 			.flatMap { user ->
+				val resolvedRole = request.role ?: user.role
 				val resolvedCohort = request.cohort ?: user.cohort
 				val cohortOrderMono = if (resolvedCohort == user.cohort) {
 					Mono.just(user.cohortOrder)
@@ -180,50 +187,53 @@ class AdminServiceImpl(
 
 				cohortOrderMono.flatMap { resolvedCohortOrder ->
 					val resolvedTrack = userPublicCodeService.resolveTrack(
-						role = user.role,
-						requestedTrack = if (user.role == UserRole.USER) request.userTrack ?: user.userTrack else null,
+						role = resolvedRole,
+						requestedTrack = if (resolvedRole == UserRole.USER) request.userTrack ?: user.userTrack else null,
 					)
 					val recalculatedPublicCode = userPublicCodeService.generate(
-						role = user.role,
+						role = resolvedRole,
 						userTrack = resolvedTrack,
 						cohort = resolvedCohort,
 						cohortOrder = resolvedCohortOrder,
 					)
 					userRepository.save(
 						user.copy(
-							role = role,
+							role = resolvedRole,
 							userTrack = resolvedTrack,
 							cohort = resolvedCohort,
 							cohortOrder = resolvedCohortOrder,
 							publicCode = recalculatedPublicCode,
 							nickname = normalizedNickname ?: user.nickname,
 						),
-					).map { saved ->
-						logger.warn(
-							"security_audit event=admin_user_updated user_id={} username={} old_track={} new_track={} old_cohort={} new_cohort={} old_cohort_order={} new_cohort_order={} public_code={}",
-							saved.id,
-							saved.username,
-							user.role,
-							saved.role,
-							user.userTrack,
-							saved.userTrack,
-							user.cohort,
-							saved.cohort,
-							user.cohortOrder,
-							saved.cohortOrder,
-							saved.publicCode,
-						)
-						UpdateUserResponse(
-							id = requireNotNull(saved.id),
-							username = saved.username,
-							role = saved.role,
-							userTrack = saved.userTrack,
-							cohort = saved.cohort,
-							cohortOrder = saved.cohortOrder,
-							publicCode = saved.publicCode,
-							nickname = saved.nickname,
-						)
-					}
+					).flatMap { saved ->
+						userProfileEventPublisher.publishUserProfileUpdated(toUserProfileUpdatedEvent(saved))
+							.thenReturn(saved)
+					}.map { saved ->
+					logger.warn(
+						"security_audit event=admin_user_updated user_id={} username={} old_role={} new_role={} old_track={} new_track={} old_cohort={} new_cohort={} old_cohort_order={} new_cohort_order={} public_code={}",
+						saved.id,
+						saved.username,
+						user.role,
+						saved.role,
+						user.userTrack,
+						saved.userTrack,
+						user.cohort,
+						saved.cohort,
+						user.cohortOrder,
+						saved.cohortOrder,
+						saved.publicCode,
+					)
+					UpdateUserResponse(
+						id = requireNotNull(saved.id),
+						username = saved.username,
+						role = saved.role,
+						userTrack = saved.userTrack,
+						cohort = saved.cohort,
+						cohortOrder = saved.cohortOrder,
+						publicCode = saved.publicCode,
+						nickname = saved.nickname,
+					)
+				}
 				}
 			}
 	}
@@ -355,8 +365,6 @@ class AdminServiceImpl(
 				id = requireNotNull(saved.id),
 				username = saved.username,
 				role = saved.role,
-				provisionType = ProvisionType.PASSWORD,
-				temporaryPassword = temporaryPassword,
 				userTrack = saved.userTrack,
 				cohort = saved.cohort,
 				cohortOrder = saved.cohortOrder,
@@ -503,10 +511,28 @@ class AdminServiceImpl(
 			.switchIfEmpty(Mono.just(baseSummary))
 	}
 
+	private fun toUserProfileUpdatedEvent(entity: UserEntity): UserProfileUpdatedEvent =
+		UserProfileUpdatedEvent(
+			eventId = UUID.randomUUID().toString(),
+			type = USER_PROFILE_UPDATED_EVENT_TYPE,
+			occurredAt = entity.updatedAt.toString(),
+			userId = requireNotNull(entity.id).toString(),
+			username = entity.username,
+			role = entity.role.name,
+			userTrack = entity.userTrack.name,
+			cohort = entity.cohort,
+			cohortOrder = entity.cohortOrder,
+			publicCode = entity.publicCode,
+			nickname = entity.nickname,
+			profileImageUrl = entity.profileImageUrl,
+			version = entity.profileVersion,
+		)
+
 	companion object {
 		private val logger = LoggerFactory.getLogger(AdminServiceImpl::class.java)
 		private const val DEFAULT_USER_TRACK = "NO"
 		private val ALLOWED_USER_TRACKS = setOf("NO", "FL", "SP")
 		private val NICKNAME_PATTERN = Regex("^[\\p{L}\\p{N} _.-]{1,40}$")
+		private const val USER_PROFILE_UPDATED_EVENT_TYPE = "UserProfileUpdated"
 	}
 }
