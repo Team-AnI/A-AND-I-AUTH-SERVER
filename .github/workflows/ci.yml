@@ -47,5 +47,8 @@ jobs:
           push: false
 
       - name: Validate docker-compose file
+        env:
+          JWT_SECRET: ${{ secrets.JWT_SECRET || 'ci-dummy-jwt-secret-at-least-32-bytes' }}
+          JWT_ISSUER: ${{ vars.JWT_ISSUER || vars.ISSUER_URI || 'aandiclub-auth' }}
+          JWT_AUDIENCE: ${{ vars.JWT_AUDIENCE || vars.AUDIENCE || 'aandiclub-api' }}
         run: docker compose -f docker-compose.yml config
-
