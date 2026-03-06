@@ -12,7 +12,6 @@ import com.aandiclub.auth.admin.web.dto.AdminUserSummary
 import com.aandiclub.auth.admin.web.dto.CreateAdminUserRequest
 import com.aandiclub.auth.admin.web.dto.CreateAdminUserResponse
 import com.aandiclub.auth.admin.web.dto.InviteMailRequest
-import com.aandiclub.auth.admin.web.dto.InviteMailRequestV2
 import com.aandiclub.auth.admin.web.dto.InviteMailResponse
 import com.aandiclub.auth.admin.web.dto.InviteMailTarget
 import com.aandiclub.auth.admin.web.dto.ProvisionType
@@ -127,16 +126,7 @@ class AdminServiceImpl(
 				}
 	}
 
-	override fun sendInviteMailV1(request: InviteMailRequest): Mono<InviteMailResponse> =
-		sendInviteMail(
-			emails = request.recipientEmails(),
-			role = request.role,
-			cohort = request.cohort,
-			cohortOrder = request.cohortOrder,
-			userTrack = request.userTrack,
-		)
-
-	override fun sendInviteMailV2(request: InviteMailRequestV2): Mono<InviteMailResponse> =
+	override fun sendInviteMail(request: InviteMailRequest): Mono<InviteMailResponse> =
 		sendInviteMail(
 			emails = request.recipientEmails(),
 			role = request.role,

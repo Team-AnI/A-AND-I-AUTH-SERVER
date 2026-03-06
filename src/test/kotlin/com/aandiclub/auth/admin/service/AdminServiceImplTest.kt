@@ -9,7 +9,6 @@ import com.aandiclub.auth.admin.sequence.UsernameSequenceService
 import com.aandiclub.auth.admin.service.impl.AdminServiceImpl
 import com.aandiclub.auth.admin.web.dto.CreateAdminUserRequest
 import com.aandiclub.auth.admin.web.dto.InviteMailRequest
-import com.aandiclub.auth.admin.web.dto.InviteMailRequestV2
 import com.aandiclub.auth.admin.web.dto.ProvisionType
 import com.aandiclub.auth.common.error.AppException
 import com.aandiclub.auth.common.error.ErrorCode
@@ -229,7 +228,7 @@ class AdminServiceImplTest : FunSpec({
 				.verifyComplete()
 	}
 
-	test("sendInviteMailV1 should create invite user and send invite email") {
+	test("sendInviteMail should create invite user and send invite email") {
 		val userId = UUID.randomUUID()
 		val savedUser = UserEntity(
 			id = userId,
@@ -265,9 +264,9 @@ class AdminServiceImplTest : FunSpec({
 			} returns Mono.empty()
 
 		StepVerifier.create(
-			service.sendInviteMailV1(
+			service.sendInviteMail(
 				InviteMailRequest(
-					email = "new_member@aandi.club",
+					emails = listOf("new_member@aandi.club"),
 					role = UserRole.USER,
 					cohort = null,
 					cohortOrder = null,
@@ -291,7 +290,7 @@ class AdminServiceImplTest : FunSpec({
 		savedUserSlot.captured.publicCode shouldBe "user_03"
 	}
 
-	test("sendInviteMailV2 should send to multiple emails and keep backward-compatible single fields null") {
+	test("sendInviteMail should send to multiple emails") {
 		val savedUser1 = UserEntity(
 			id = UUID.randomUUID(),
 			username = "user_04",
@@ -325,8 +324,8 @@ class AdminServiceImplTest : FunSpec({
 			every { inviteMailService.sendInviteMail(any(), any(), any(), any(), any(), any(), any(), any(), any()) } returns Mono.empty()
 
 		StepVerifier.create(
-			service.sendInviteMailV2(
-				InviteMailRequestV2(
+			service.sendInviteMail(
+				InviteMailRequest(
 					emails = listOf("new_member_1@aandi.club", "new_member_2@aandi.club"),
 					role = UserRole.USER,
 					cohort = null,
@@ -347,7 +346,7 @@ class AdminServiceImplTest : FunSpec({
 			.verifyComplete()
 	}
 
-	test("sendInviteMailV1 should persist and return cohort and track when provided") {
+	test("sendInviteMail should persist and return cohort and track when provided") {
 		val savedUser = UserEntity(
 			id = UUID.randomUUID(),
 			username = "user_06",
@@ -373,9 +372,9 @@ class AdminServiceImplTest : FunSpec({
 		every { inviteMailService.sendInviteMail(any(), any(), any(), any(), any(), any(), any(), any(), any()) } returns Mono.empty()
 
 		StepVerifier.create(
-			service.sendInviteMailV1(
+			service.sendInviteMail(
 				InviteMailRequest(
-					email = "new_member@aandi.club",
+					emails = listOf("new_member@aandi.club"),
 					role = UserRole.USER,
 					cohort = 10,
 					cohortOrder = 3,
@@ -397,11 +396,11 @@ class AdminServiceImplTest : FunSpec({
 		savedUserSlot.captured.userTrack shouldBe "FL"
 	}
 
-	test("sendInviteMailV1 should reject unsupported userTrack") {
+	test("sendInviteMail should reject unsupported userTrack") {
 		StepVerifier.create(
-			service.sendInviteMailV1(
+			service.sendInviteMail(
 				InviteMailRequest(
-					email = "new_member@aandi.club",
+					emails = listOf("new_member@aandi.club"),
 					role = UserRole.USER,
 					cohort = null,
 					cohortOrder = null,
@@ -415,10 +414,10 @@ class AdminServiceImplTest : FunSpec({
 			.verify()
 	}
 
-	test("sendInviteMailV2 should reject request when no recipient emails are provided") {
+	test("sendInviteMail should reject request when no recipient emails are provided") {
 		StepVerifier.create(
-			service.sendInviteMailV2(
-				InviteMailRequestV2(
+			service.sendInviteMail(
+				InviteMailRequest(
 					emails = emptyList(),
 					role = UserRole.USER,
 					cohort = null,
