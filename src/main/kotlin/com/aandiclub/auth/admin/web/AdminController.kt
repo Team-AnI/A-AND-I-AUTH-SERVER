@@ -6,6 +6,7 @@ import com.aandiclub.auth.admin.web.dto.CreateAdminUserRequest
 import com.aandiclub.auth.admin.web.dto.CreateAdminUserResponse
 import com.aandiclub.auth.admin.web.dto.DeleteUserRequest
 import com.aandiclub.auth.admin.web.dto.InviteMailRequest
+import com.aandiclub.auth.admin.web.dto.InviteMailRequestV2
 import com.aandiclub.auth.admin.web.dto.InviteMailResponse
 import com.aandiclub.auth.admin.web.dto.ResetPasswordResponse
 import com.aandiclub.auth.admin.web.dto.UpdateUserRoleRequest
@@ -28,7 +29,7 @@ import java.util.UUID
 
 @RestController
 @RequestMapping("/v1/admin")
-class AdminController(
+class AdminV1Controller(
 	private val adminService: AdminService,
 ) {
 	@GetMapping("/ping")
@@ -43,8 +44,8 @@ class AdminController(
 		adminService.createUser(request).map { ApiResponse.success(it) }
 
 	@PostMapping("/invite-mail")
-	fun sendInviteMail(@Valid @RequestBody request: InviteMailRequest): Mono<ApiResponse<InviteMailResponse>> =
-		adminService.sendInviteMail(request).map { ApiResponse.success(it) }
+	fun sendInviteMailV1(@Valid @RequestBody request: InviteMailRequest): Mono<ApiResponse<InviteMailResponse>> =
+		adminService.sendInviteMailV1(request).map { ApiResponse.success(it) }
 
 	@PostMapping("/users/{id}/reset-password")
 	fun resetPassword(@PathVariable id: UUID): Mono<ApiResponse<ResetPasswordResponse>> =
@@ -68,4 +69,14 @@ class AdminController(
 	): Mono<ResponseEntity<Void>> =
 		adminService.deleteUser(targetUserId = request.userId, actorUserId = actor.userId)
 			.thenReturn(ResponseEntity.noContent().build())
+}
+
+@RestController
+@RequestMapping("/v2/admin")
+class AdminV2Controller(
+	private val adminService: AdminService,
+) {
+	@PostMapping("/invite-mail")
+	fun sendInviteMailV2(@Valid @RequestBody request: InviteMailRequestV2): Mono<ApiResponse<InviteMailResponse>> =
+		adminService.sendInviteMailV2(request).map { ApiResponse.success(it) }
 }

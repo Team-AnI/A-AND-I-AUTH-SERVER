@@ -4,6 +4,7 @@ import com.aandiclub.auth.admin.web.dto.AdminUserSummary
 import com.aandiclub.auth.admin.web.dto.CreateAdminUserRequest
 import com.aandiclub.auth.admin.web.dto.CreateAdminUserResponse
 import com.aandiclub.auth.admin.web.dto.InviteMailRequest
+import com.aandiclub.auth.admin.web.dto.InviteMailRequestV2
 import com.aandiclub.auth.admin.web.dto.InviteMailResponse
 import com.aandiclub.auth.admin.web.dto.ResetPasswordResponse
 import com.aandiclub.auth.admin.web.dto.UpdateUserRoleResponse
@@ -17,5 +18,6 @@ interface AdminService {
 	fun resetPassword(userId: UUID): Mono<ResetPasswordResponse>
 	fun updateUserRole(targetUserId: UUID, role: UserRole, actorUserId: UUID): Mono<UpdateUserRoleResponse>
 	fun deleteUser(targetUserId: UUID, actorUserId: UUID): Mono<Void>
-	fun sendInviteMail(request: InviteMailRequest): Mono<InviteMailResponse>
+	fun sendInviteMailV1(request: InviteMailRequest): Mono<InviteMailResponse>
+	fun sendInviteMailV2(request: InviteMailRequestV2): Mono<InviteMailResponse>
 }

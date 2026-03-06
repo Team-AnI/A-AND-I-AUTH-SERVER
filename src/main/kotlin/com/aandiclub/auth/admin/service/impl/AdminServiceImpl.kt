@@ -12,6 +12,7 @@ import com.aandiclub.auth.admin.web.dto.AdminUserSummary
 import com.aandiclub.auth.admin.web.dto.CreateAdminUserRequest
 import com.aandiclub.auth.admin.web.dto.CreateAdminUserResponse
 import com.aandiclub.auth.admin.web.dto.InviteMailRequest
+import com.aandiclub.auth.admin.web.dto.InviteMailRequestV2
 import com.aandiclub.auth.admin.web.dto.InviteMailResponse
 import com.aandiclub.auth.admin.web.dto.InviteMailTarget
 import com.aandiclub.auth.admin.web.dto.ProvisionType
@@ -126,15 +127,38 @@ class AdminServiceImpl(
 				}
 	}
 
-	override fun sendInviteMail(request: InviteMailRequest): Mono<InviteMailResponse> =
+	override fun sendInviteMailV1(request: InviteMailRequest): Mono<InviteMailResponse> =
+		sendInviteMail(
+			emails = request.recipientEmails(),
+			role = request.role,
+			cohort = request.cohort,
+			cohortOrder = request.cohortOrder,
+			userTrack = request.userTrack,
+		)
+
+	override fun sendInviteMailV2(request: InviteMailRequestV2): Mono<InviteMailResponse> =
+		sendInviteMail(
+			emails = request.recipientEmails(),
+			role = request.role,
+			cohort = request.cohort,
+			cohortOrder = request.cohortOrder,
+			userTrack = request.userTrack,
+		)
+
+	private fun sendInviteMail(
+		emails: List<String>,
+		role: UserRole,
+		cohort: Int?,
+		cohortOrder: Int?,
+		userTrack: String?,
+	): Mono<InviteMailResponse> =
 		Mono.defer {
-			val recipientEmails = request.recipientEmails()
-			if (recipientEmails.isEmpty()) {
+			if (emails.isEmpty()) {
 				return@defer Mono.error(AppException(ErrorCode.INVALID_REQUEST, "At least one email is required."))
 			}
-			val provisioningProfile = resolveProvisioningProfile(request.userTrack, request.cohort, request.cohortOrder)
+			val provisioningProfile = resolveProvisioningProfile(userTrack, cohort, cohortOrder)
 
-			Flux.fromIterable(recipientEmails)
+			Flux.fromIterable(emails)
 				.concatMap { recipientEmail ->
 					usernameSequenceService.nextSequence()
 						.flatMap { sequence ->
@@ -142,7 +166,7 @@ class AdminServiceImpl(
 							createInviteProvisionedUser(
 								username = username,
 								request = CreateAdminUserRequest(
-									role = request.role,
+									role = role,
 									provisionType = ProvisionType.INVITE,
 								),
 								provisioningProfile = provisioningProfile,
