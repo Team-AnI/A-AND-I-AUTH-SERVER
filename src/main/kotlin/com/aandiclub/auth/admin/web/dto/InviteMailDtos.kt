@@ -1,16 +1,16 @@
 package com.aandiclub.auth.admin.web.dto
 
 import com.aandiclub.auth.user.domain.UserRole
-import jakarta.validation.constraints.Email
+import jakarta.validation.constraints.AssertTrue
 import jakarta.validation.constraints.Min
+import jakarta.validation.constraints.NotEmpty
 import jakarta.validation.constraints.Size
 import java.time.Instant
 
 data class InviteMailRequest(
-	@field:Email(message = "email must be a valid email address")
-	val email: String? = null,
+	@field:NotEmpty(message = "emails must not be empty")
 	@field:Size(max = 100, message = "emails size must be less than or equal to 100")
-	val emails: List<@Email(message = "emails must contain valid email addresses") String> = emptyList(),
+	val emails: List<String> = emptyList(),
 	val role: UserRole = UserRole.USER,
 	@field:Min(value = 0, message = "cohort must be greater than or equal to 0")
 	val cohort: Int? = null,
@@ -18,16 +18,16 @@ data class InviteMailRequest(
 	val cohortOrder: Int? = null,
 	val userTrack: String? = null,
 ) {
+	@get:AssertTrue(message = "emails must contain valid email addresses")
+	val isEmailsValid: Boolean
+		get() = emails.all { it.matches(Regex(".+@.+\\..+")) }
+
 	fun recipientEmails(): List<String> =
-		buildList {
-			email?.trim()
-				?.takeIf { it.isNotEmpty() }
-				?.let { add(it) }
-			emails.asSequence()
-				.map { it.trim() }
-				.filter { it.isNotEmpty() }
-				.forEach { add(it) }
-		}.distinctBy { it.lowercase() }
+		emails.asSequence()
+			.map { it.trim() }
+			.filter { it.isNotEmpty() }
+			.distinctBy { it.lowercase() }
+			.toList()
 }
 
 data class InviteMailTarget(

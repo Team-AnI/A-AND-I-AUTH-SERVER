@@ -129,9 +129,6 @@ class AdminServiceImpl(
 	override fun sendInviteMail(request: InviteMailRequest): Mono<InviteMailResponse> =
 		Mono.defer {
 			val recipientEmails = request.recipientEmails()
-			if (recipientEmails.isEmpty()) {
-				return@defer Mono.error(AppException(ErrorCode.INVALID_REQUEST, "At least one email is required."))
-			}
 			val provisioningProfile = resolveProvisioningProfile(request.userTrack, request.cohort, request.cohortOrder)
 
 			Flux.fromIterable(recipientEmails)

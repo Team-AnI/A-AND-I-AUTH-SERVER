@@ -42,7 +42,7 @@ class AdminControllerTest : FunSpec({
 		webTestClient.post()
 			.uri("/v1/admin/invite-mail")
 			.contentType(MediaType.APPLICATION_JSON)
-			.bodyValue("""{"email":"new_member@aandi.club","role":"USER"}""")
+			.bodyValue("""{"emails":["new_member@aandi.club"],"role":"USER"}""")
 			.exchange()
 			.expectStatus().isOk
 			.expectBody()
@@ -92,7 +92,7 @@ class AdminControllerTest : FunSpec({
 		webTestClient.post()
 			.uri("/v1/admin/invite-mail")
 			.contentType(MediaType.APPLICATION_JSON)
-			.bodyValue("""{"email":"invalid-email","role":"USER"}""")
+			.bodyValue("""{"emails":["invalid-email"],"role":"USER"}""")
 			.exchange()
 			.expectStatus().isBadRequest
 			.expectBody()
