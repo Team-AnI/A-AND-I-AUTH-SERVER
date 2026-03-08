@@ -17,6 +17,14 @@ data class UserEntity(
 	val passwordHash: String,
 	@Column("role")
 	val role: UserRole,
+	@Column("user_track")
+	val userTrack: UserTrack = UserTrack.NO,
+	@Column("cohort")
+	val cohort: Int = 0,
+	@Column("cohort_order")
+	val cohortOrder: Int = 1,
+	@Column("public_code")
+	val publicCode: String = "#NO001",
 	@Column("force_password_change")
 	val forcePasswordChange: Boolean = false,
 	@Column("is_active")
@@ -29,14 +37,6 @@ data class UserEntity(
 	val profileImageUrl: String? = null,
 	@Column("profile_version")
 	val profileVersion: Long = 0,
-	@Column("user_track")
-	val userTrack: String = "NO",
-	@Column("cohort")
-	val cohort: Int = 0,
-	@Column("cohort_order")
-	val cohortOrder: Int = 0,
-	@Column("public_code")
-	val publicCode: String = username,
 	@Column("created_at")
 	val createdAt: Instant = Instant.now(),
 	@Column("updated_at")
