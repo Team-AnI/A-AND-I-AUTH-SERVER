@@ -8,6 +8,7 @@ import com.aandiclub.auth.user.config.ProfileImageProperties
 import com.aandiclub.auth.user.config.ProfileProperties
 import com.aandiclub.auth.user.domain.UserEntity
 import com.aandiclub.auth.user.domain.UserRole
+import com.aandiclub.auth.user.domain.UserTrack
 import com.aandiclub.auth.user.event.UserProfileEventPublisher
 import com.aandiclub.auth.user.event.UserProfileUpdatedEvent
 import com.aandiclub.auth.user.repository.UserRepository
@@ -54,6 +55,7 @@ class UserServiceImplTest : FunSpec({
 	val service = UserServiceImpl(
 		userRepository = userRepository,
 		passwordService = passwordService,
+		userPublicCodeService = UserPublicCodeService(),
 		userProfileEventPublisher = userProfileEventPublisher,
 		profileImageProperties = ProfileImageProperties(
 			enabled = true,
@@ -81,6 +83,8 @@ class UserServiceImplTest : FunSpec({
 				username = "user_01",
 				passwordHash = "hash",
 				role = UserRole.USER,
+				userTrack = UserTrack.SP,
+				publicCode = "#SP001",
 				nickname = "홍길동",
 				profileImageUrl = "https://images.aandiclub.com/users/user_01.png",
 				createdAt = Instant.now(),
@@ -90,6 +94,8 @@ class UserServiceImplTest : FunSpec({
 
 		StepVerifier.create(service.getMe(AuthenticatedUser(userId, "user_01", UserRole.USER)))
 			.assertNext { response ->
+				response.userTrack shouldBe UserTrack.SP
+				response.publicCode shouldBe "#SP001"
 				response.nickname shouldBe "홍길동"
 				response.profileImageUrl shouldBe "https://images.aandiclub.com/users/user_01.png"
 			}
@@ -125,6 +131,10 @@ class UserServiceImplTest : FunSpec({
 		verify(atLeast = 1) { userProfileEventPublisher.publishUserProfileUpdated(any()) }
 		eventSlot.captured.type shouldBe "UserProfileUpdated"
 		eventSlot.captured.userId shouldBe userId.toString()
+		eventSlot.captured.username shouldBe "user_02"
+		eventSlot.captured.role shouldBe UserRole.USER.name
+		eventSlot.captured.userTrack shouldBe UserTrack.NO.name
+		eventSlot.captured.publicCode shouldBe "#NO001"
 		eventSlot.captured.nickname shouldBe "new profile"
 		eventSlot.captured.profileImageUrl shouldBe "https://images.aandiclub.com/old.png"
 		eventSlot.captured.version shouldBe 1L
@@ -274,6 +284,10 @@ class UserServiceImplTest : FunSpec({
 		verify(atLeast = 1) { userProfileEventPublisher.publishUserProfileUpdated(any()) }
 		eventSlot.captured.type shouldBe "UserProfileUpdated"
 		eventSlot.captured.userId shouldBe userId.toString()
+		eventSlot.captured.username shouldBe "user_07"
+		eventSlot.captured.role shouldBe UserRole.USER.name
+		eventSlot.captured.userTrack shouldBe UserTrack.NO.name
+		eventSlot.captured.publicCode shouldBe "#NO001"
 		eventSlot.captured.profileImageUrl shouldBe newProfileImageUrl
 		eventSlot.captured.version shouldBe 1L
 	}
@@ -289,6 +303,46 @@ class UserServiceImplTest : FunSpec({
 				ex::class shouldBe AppException::class
 				(ex as AppException).errorCode shouldBe ErrorCode.INVALID_REQUEST
 				ex.message shouldBe "Unsupported profile image content type."
+			}
+			.verify()
+	}
+
+	test("lookupByPublicCode should return non-admin user") {
+		val userId = UUID.randomUUID()
+		every { userRepository.findByPublicCode("#NO001") } returns Mono.just(
+			UserEntity(
+				id = userId,
+				username = "lookup_user",
+				passwordHash = "hash",
+				role = UserRole.USER,
+				publicCode = "#NO001",
+				nickname = "닉네임",
+			),
+		)
+
+		StepVerifier.create(service.lookupByPublicCode("#NO001"))
+			.assertNext { response ->
+				response.id shouldBe userId
+				response.publicCode shouldBe "#NO001"
+				response.username shouldBe "lookup_user"
+			}
+			.verifyComplete()
+	}
+
+	test("lookupByPublicCode should reject admin user") {
+		every { userRepository.findByPublicCode("#AD001") } returns Mono.just(
+			UserEntity(
+				id = UUID.randomUUID(),
+				username = "admin_lookup",
+				passwordHash = "hash",
+				role = UserRole.ADMIN,
+				publicCode = "#AD001",
+			),
+		)
+
+		StepVerifier.create(service.lookupByPublicCode("#AD001"))
+			.expectErrorSatisfies { ex ->
+				(ex as AppException).errorCode shouldBe ErrorCode.NOT_FOUND
 			}
 			.verify()
 	}

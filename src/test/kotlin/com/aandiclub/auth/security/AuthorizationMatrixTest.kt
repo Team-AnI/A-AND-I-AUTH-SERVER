@@ -45,24 +45,24 @@ class AuthorizationMatrixTest : StringSpec() {
 			beforeSpec {
 				databaseClient.sql(
 					"""
-					CREATE TABLE IF NOT EXISTS "users" (
-						"id" UUID PRIMARY KEY,
-						"username" VARCHAR(64) NOT NULL UNIQUE,
-						"password_hash" VARCHAR(255) NOT NULL,
-						"role" VARCHAR(32) NOT NULL,
-						"force_password_change" BOOLEAN NOT NULL DEFAULT FALSE,
-						"is_active" BOOLEAN NOT NULL DEFAULT TRUE,
-						"last_login_at" TIMESTAMP NULL,
-						"nickname" VARCHAR(40) NULL,
-						"profile_image_url" VARCHAR(2048) NULL,
-						"profile_version" BIGINT NOT NULL DEFAULT 0,
-						"user_track" VARCHAR(16) NOT NULL DEFAULT 'NO',
-						"cohort" INTEGER NOT NULL DEFAULT 0,
-						"cohort_order" INTEGER NOT NULL DEFAULT 0,
-						"public_code" VARCHAR(16) NOT NULL,
-						"created_at" TIMESTAMP NOT NULL,
-						"updated_at" TIMESTAMP NOT NULL
-					)
+				CREATE TABLE IF NOT EXISTS "users" (
+					"id" UUID PRIMARY KEY,
+					"username" VARCHAR(64) NOT NULL UNIQUE,
+					"password_hash" VARCHAR(255) NOT NULL,
+					"role" VARCHAR(32) NOT NULL,
+					"user_track" VARCHAR(16) NOT NULL,
+					"cohort" INTEGER NOT NULL,
+					"cohort_order" INTEGER NOT NULL,
+					"public_code" VARCHAR(16) NOT NULL UNIQUE,
+					"force_password_change" BOOLEAN NOT NULL DEFAULT FALSE,
+					"is_active" BOOLEAN NOT NULL DEFAULT TRUE,
+					"last_login_at" TIMESTAMP NULL,
+					"nickname" VARCHAR(40) NULL,
+					"profile_image_url" VARCHAR(2048) NULL,
+					"profile_version" BIGINT NOT NULL DEFAULT 0,
+					"created_at" TIMESTAMP NOT NULL,
+					"updated_at" TIMESTAMP NOT NULL
+				)
 					""".trimIndent(),
 				).fetch().rowsUpdated().block()
 				databaseClient.sql(
@@ -223,6 +223,29 @@ class AuthorizationMatrixTest : StringSpec() {
 				.expectStatus().isForbidden
 		}
 
+		"GET /v1/users/lookup denies USER role" {
+			val token = accessToken(UUID.randomUUID(), "tester_user_lookup_denied", UserRole.USER)
+			webClient().get()
+				.uri("/v1/users/lookup?code=NO001")
+				.headers { it.setBearerAuth(token) }
+				.exchange()
+				.expectStatus().isForbidden
+		}
+
+		"GET /v1/users/lookup allows ORGANIZER role" {
+			val targetUserId = UUID.randomUUID()
+			insertUser(targetUserId, "lookup_target", UserRole.USER)
+			val organizerToken = accessToken(UUID.randomUUID(), "tester_lookup_organizer", UserRole.ORGANIZER)
+
+			webClient().get()
+				.uri("/v1/users/lookup?code=NO001")
+				.headers { it.setBearerAuth(organizerToken) }
+				.exchange()
+				.expectStatus().isOk
+				.expectBody()
+				.jsonPath("$.success").isEqualTo(true)
+		}
+
 		"GET /v1/admin/ping denies ORGANIZER role" {
 			val token = accessToken(UUID.randomUUID(), "tester_organizer_denied", UserRole.ORGANIZER)
 			webClient().get()
@@ -297,6 +320,67 @@ class AuthorizationMatrixTest : StringSpec() {
 					.jsonPath("$.data.role").isEqualTo("ORGANIZER")
 			}
 
+			"PATCH /v1/admin/users denies USER role" {
+				val targetUserId = UUID.randomUUID()
+				val token = accessToken(UUID.randomUUID(), "tester_user_patch_denied", UserRole.USER)
+				webClient().patch()
+					.uri("/v1/admin/users")
+					.headers { it.setBearerAuth(token) }
+					.contentType(MediaType.APPLICATION_JSON)
+					.bodyValue("""{"userId":"$targetUserId","cohort":5}""")
+					.exchange()
+					.expectStatus().isForbidden
+			}
+
+			"PATCH /v1/admin/users denies ORGANIZER role" {
+				val targetUserId = UUID.randomUUID()
+				val token = accessToken(UUID.randomUUID(), "tester_organizer_patch_denied", UserRole.ORGANIZER)
+				webClient().patch()
+					.uri("/v1/admin/users")
+					.headers { it.setBearerAuth(token) }
+					.contentType(MediaType.APPLICATION_JSON)
+					.bodyValue("""{"userId":"$targetUserId","userTrack":"FL"}""")
+					.exchange()
+					.expectStatus().isForbidden
+			}
+
+			"PATCH /v1/admin/users allows ADMIN role" {
+				val targetUserId = UUID.randomUUID()
+				insertUser(targetUserId, "target_patch_user", UserRole.USER)
+				val token = accessToken(UUID.randomUUID(), "tester_admin_patch_allowed", UserRole.ADMIN)
+
+				webClient().patch()
+					.uri("/v1/admin/users")
+					.headers { it.setBearerAuth(token) }
+					.contentType(MediaType.APPLICATION_JSON)
+					.bodyValue("""{"userId":"$targetUserId","userTrack":"FL"}""")
+					.exchange()
+					.expectStatus().isOk
+					.expectBody()
+					.jsonPath("$.success").isEqualTo(true)
+					.jsonPath("$.data.id").isEqualTo(targetUserId.toString())
+					.jsonPath("$.data.userTrack").isEqualTo("FL")
+					.jsonPath("$.data.cohort").isEqualTo(0)
+			}
+
+			"PATCH /v1/admin/users allows ADMIN role update by role field" {
+				val targetUserId = UUID.randomUUID()
+				insertUser(targetUserId, "target_patch_role_user", UserRole.USER)
+				val token = accessToken(UUID.randomUUID(), "tester_admin_patch_role_allowed", UserRole.ADMIN)
+
+				webClient().patch()
+					.uri("/v1/admin/users")
+					.headers { it.setBearerAuth(token) }
+					.contentType(MediaType.APPLICATION_JSON)
+					.bodyValue("""{"userId":"$targetUserId","role":"ORGANIZER"}""")
+					.exchange()
+					.expectStatus().isOk
+					.expectBody()
+					.jsonPath("$.success").isEqualTo(true)
+					.jsonPath("$.data.id").isEqualTo(targetUserId.toString())
+					.jsonPath("$.data.role").isEqualTo("ORGANIZER")
+			}
+
 			"DELETE /v1/admin/users denies USER role" {
 				val targetUserId = UUID.randomUUID()
 				val token = accessToken(UUID.randomUUID(), "tester_user_delete_denied", UserRole.USER)
@@ -334,59 +418,63 @@ class AuthorizationMatrixTest : StringSpec() {
 	private fun insertUser(userId: UUID, username: String, role: UserRole) {
 		databaseClient.sql(
 			"""
-				INSERT INTO "users" (
-					"id",
-					"username",
-					"password_hash",
-					"role",
-					"force_password_change",
-					"is_active",
-					"last_login_at",
-					"nickname",
-					"profile_image_url",
-					"profile_version",
-					"user_track",
-					"cohort",
-					"cohort_order",
-					"public_code",
-					"created_at",
-					"updated_at"
-				) VALUES (
-					:userId,
-					:username,
+			INSERT INTO "users" (
+				"id",
+				"username",
+				"password_hash",
+				"role",
+				"user_track",
+				"cohort",
+				"cohort_order",
+				"public_code",
+				"force_password_change",
+				"is_active",
+				"last_login_at",
+				"nickname",
+				"profile_image_url",
+				"profile_version",
+				"created_at",
+				"updated_at"
+			) VALUES (
+				:userId,
+				:username,
 				:passwordHash,
 				:role,
+				:userTrack,
+				:cohort,
+				:cohortOrder,
+				:publicCode,
 				:forcePasswordChange,
 				:isActive,
-					:lastLoginAt,
-					:nickname,
-					:profileImageUrl,
-					:profileVersion,
-					:userTrack,
-					:cohort,
-					:cohortOrder,
-					:publicCode,
-					:createdAt,
-					:updatedAt
-				)
+				:lastLoginAt,
+				:nickname,
+				:profileImageUrl,
+				:profileVersion,
+				:createdAt,
+				:updatedAt
+			)
 			""".trimIndent(),
 		)
 			.bind("userId", userId)
 			.bind("username", username)
 			.bind("passwordHash", "hash")
 			.bind("role", role.name)
+			.bind("userTrack", "NO")
+			.bind("cohort", 0)
+			.bind("cohortOrder", 1)
+			.bind("publicCode", when (role) {
+				UserRole.ADMIN -> "#AD001"
+				UserRole.ORGANIZER -> "#OR001"
+				UserRole.USER -> "#NO001"
+			})
 			.bind("forcePasswordChange", false)
 			.bind("isActive", true)
 			.bindNull("lastLoginAt", Instant::class.java)
-				.bindNull("nickname", String::class.java)
-				.bindNull("profileImageUrl", String::class.java)
-				.bind("profileVersion", 0L)
-				.bind("userTrack", "NO")
-				.bind("cohort", 0)
-				.bind("cohortOrder", 0)
-				.bind("publicCode", userId.toString().replace("-", "").take(16))
-				.bind("createdAt", Instant.now())
-				.bind("updatedAt", Instant.now())
+			.bindNull("nickname", String::class.java)
+			.bindNull("profileImageUrl", String::class.java)
+			.bind("profileVersion", 0L)
+			.bind("createdAt", Instant.now())
+			.bind("updatedAt", Instant.now())
 			.fetch()
 			.rowsUpdated()
 			.block()
