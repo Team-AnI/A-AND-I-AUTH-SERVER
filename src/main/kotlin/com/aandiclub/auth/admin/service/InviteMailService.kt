@@ -16,6 +16,9 @@ import reactor.core.publisher.Mono
 import reactor.core.scheduler.Schedulers
 import java.nio.charset.StandardCharsets
 import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @Service
 class InviteMailService(
@@ -101,7 +104,7 @@ class InviteMailService(
 		context.setVariable("username", username)
 		context.setVariable("role", role.name)
 		context.setVariable("inviteUrl", inviteUrl)
-		context.setVariable("expiresAt", expiresAt.toString())
+		context.setVariable("expiresAt", KST_DATE_TIME_FORMATTER.format(expiresAt.atZone(KST_ZONE_ID)))
 		context.setVariable("userTrack", if (userTrack == "NO") "미설정" else userTrack)
 		context.setVariable("cohort", if (cohort == 0) "미설정" else "${cohort}기")
 		context.setVariable("cohortOrder", if (cohortOrder == 0) "미설정" else "${cohortOrder}번")
@@ -114,5 +117,8 @@ class InviteMailService(
 		private const val INVITE_MAIL_SEND_FAILED_MESSAGE = "Failed to send invite email."
 		private const val MAIL_SENDER_NOT_CONFIGURED_MESSAGE = "Mail sender is not configured."
 		private const val MAIL_FROM_NOT_CONFIGURED_MESSAGE = "Mail from address is not configured."
+		private val KST_ZONE_ID: ZoneId = ZoneId.of("Asia/Seoul")
+		private val KST_DATE_TIME_FORMATTER: DateTimeFormatter =
+			DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss 'KST'", Locale.KOREA)
 	}
 }
