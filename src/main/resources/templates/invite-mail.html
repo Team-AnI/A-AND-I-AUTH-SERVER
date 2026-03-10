@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>A&I Club Invitation</title>
+  <title th:text="${cohort != '미설정' ? 'A&I 신규 ' + cohort + ' 동아리원 합류 안내' : 'A&I 신규 동아리원 합류 안내'}">A&amp;I 신규 4기 동아리원 합류 안내</title>
 </head>
 <body style="margin:0;padding:0;background-color:#03040a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Noto Sans KR','Apple SD Gothic Neo',sans-serif;">
 <table role="presentation" style="width:100%;border-collapse:collapse;background-color:#03040a;padding:24px 0;">
@@ -13,8 +13,11 @@
         <tr>
           <td style="padding:34px 34px 18px;color:#f4f7ff;">
             <p style="margin:0 0 8px;color:#8aa9ff;font-size:12px;letter-spacing:1.4px;font-weight:700;">A&I CLUB INVITATION</p>
-            <h1 style="margin:0;color:#f6f8ff;font-size:28px;line-height:1.35;font-weight:800;">
-              함께 성장할<br>새로운 동아리원을 초대합니다
+            <h1
+              style="margin:0;color:#f6f8ff;font-size:28px;line-height:1.35;font-weight:800;"
+              th:text="${cohort != '미설정' ? 'A&I 신규 ' + cohort + ' 동아리원 합류 안내' : 'A&I 신규 동아리원 합류 안내'}"
+            >
+              A&amp;I 신규 4기 동아리원 합류 안내
             </h1>
             <p style="margin:14px 0 0;color:#b8c9ff;font-size:14px;line-height:1.7;font-weight:600;">
               함께 만들고, 함께 성장하는 개발동아리 A&amp;I
@@ -29,13 +32,13 @@
         <tr>
           <td style="padding:0 34px 8px;color:#ced8ff;font-size:15px;line-height:1.7;">
             안녕하세요.<br>
-            본 메일은 <strong style="color:#ffffff;">A&amp;I 개발동아리 운영진(aandiclub.com)</strong>이 발송한 공식 초대 메일입니다.
+            본 메일은 <strong style="color:#ffffff;">A&amp;I 개발동아리 운영진(aandiclub.com)</strong>에서 보내드리는 공식 초대 메일입니다.
           </td>
         </tr>
         <tr>
-          <td style="padding:18px 34px 8px;color:#f3f7ff;font-size:24px;line-height:1.45;font-weight:800;">
-            A&amp;I 개발동아리에<br>
-            오신 것을 환영합니다.
+          <td style="padding:18px 34px 8px;color:#ced8ff;font-size:15px;line-height:1.8;">
+            A&amp;I는 개발을 좋아하는 사람들이 함께 배우고 성장하는 동아리입니다.<br>
+            개발 기초부터 컴퓨터 공학, 프레임워크를 함께하며 A&amp;I 생태계에 기여할 여러분을 환영합니다.
           </td>
         </tr>
         <tr>
@@ -43,13 +46,13 @@
             <table role="presentation" style="width:100%;border-collapse:collapse;background:linear-gradient(180deg,rgba(18,34,85,0.95) 0%,rgba(10,18,42,0.98) 100%);border:1px solid #233a7a;border-radius:14px;">
               <tr>
                 <td style="padding:20px 20px 8px;color:#f7f9ff;font-size:15px;line-height:1.75;font-weight:800;">
-                  초대 링크를 통해 가입을 완료하면 A&amp;I 활동을 시작할 수 있습니다.
+                  초대 링크를 통해 가입을 완료해 주세요.
                 </td>
               </tr>
               <tr>
                 <td style="padding:0 20px 20px;color:#bfd0ff;font-size:14px;line-height:1.8;">
-                  링크 접속 후 가입 절차를 진행해 주세요.<br>
-                  가입이 완료되면 비밀번호와 기본 정보를 직접 설정할 수 있습니다.
+                  링크에 접속한 뒤, 앞으로 사용할 아이디와 비밀번호를 직접 입력해 주세요.<br>
+                  입력을 완료하면 계정이 활성화되며 바로 A&amp;I 서비스를 이용할 수 있습니다.
                 </td>
               </tr>
             </table>
@@ -57,19 +60,19 @@
         </tr>
         <tr>
           <td style="padding:22px 34px 6px;color:#d4ddff;font-size:14px;line-height:1.7;">
-            아래 버튼을 눌러 초대 수락 및 계정 활성화를 진행해 주세요.
+            아래 버튼을 눌러 가입을 진행해 주세요.
           </td>
         </tr>
         <tr>
           <td align="center" style="padding:12px 34px 18px;">
             <a th:href="${inviteUrl}" style="display:inline-block;min-width:280px;background:linear-gradient(90deg,#2c5cff 0%,#5f8dff 100%);color:#ffffff;text-decoration:none;padding:18px 32px;border-radius:14px;font-size:16px;font-weight:800;letter-spacing:0.2px;line-height:1.2;box-shadow:0 14px 28px rgba(47,92,255,0.32),0 0 0 1px rgba(255,255,255,0.08) inset;">
-              초대 수락하고 가입하기
+              가입 진행하기
             </a>
           </td>
         </tr>
         <tr>
           <td style="padding:0 34px 6px;color:#97abd8;font-size:12px;line-height:1.6;">
-            버튼이 작동하지 않으면 아래 URL을 브라우저에 붙여넣어 주세요.
+            버튼이 작동하지 않으면 아래 링크를 브라우저에 직접 붙여넣어 주세요.
           </td>
         </tr>
         <tr>
@@ -82,8 +85,8 @@
             <table role="presentation" style="width:100%;border-collapse:collapse;background-color:rgba(255,255,255,0.03);border:1px solid rgba(121,146,214,0.18);border-radius:12px;">
               <tr>
                 <td style="padding:14px 16px;color:#9aacd4;font-size:12px;line-height:1.6;">
-            링크 만료 시각(KST):
-            <strong style="color:#dce6ff;" th:text="${expiresAt}">2026-03-04T00:00:00Z</strong>
+            초대 링크 만료 시각(KST):
+            <strong style="color:#dce6ff;" th:text="${expiresAt}">2026년 3월 4일 오전 9시 00분</strong>
                 </td>
               </tr>
             </table>
@@ -108,7 +111,7 @@
         <tr>
           <td style="padding:18px 34px 24px;background-color:#060a17;border-top:1px solid #1c2f66;color:#7f91be;font-size:12px;line-height:1.6;text-align:center;">
             문의가 필요하면 동아리 운영진에게 연락해 주세요.<br>
-            본 메일은 발신 전용입니다.<br>
+            본 메일은 발신 전용으로 회신하실 수 없습니다.<br>
             © A&amp;I Club. All rights reserved.
           </td>
         </tr>
