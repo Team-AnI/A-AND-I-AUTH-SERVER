@@ -122,6 +122,39 @@ class UserRepositoryTest : FunSpec() {
 				.verify()
 		}
 
+		test("publicCode should be unique") {
+			val publicCode = "#NO001"
+			val first = userRepository.save(
+				UserEntity(
+					username = "user_public_code_1",
+					passwordHash = "hashed-password-1",
+					role = UserRole.USER,
+					publicCode = publicCode,
+					createdAt = Instant.now(),
+					updatedAt = Instant.now(),
+				),
+			)
+
+			val duplicate = userRepository.save(
+				UserEntity(
+					username = "user_public_code_2",
+					passwordHash = "hashed-password-2",
+					role = UserRole.ORGANIZER,
+					publicCode = publicCode,
+					createdAt = Instant.now(),
+					updatedAt = Instant.now(),
+				),
+			)
+
+			StepVerifier.create(first)
+				.expectNextCount(1)
+				.verifyComplete()
+
+			StepVerifier.create(duplicate)
+				.expectError(DataIntegrityViolationException::class.java)
+				.verify()
+		}
+
 		test("save should persist profile fields") {
 			val saved = userRepository.save(
 				UserEntity(

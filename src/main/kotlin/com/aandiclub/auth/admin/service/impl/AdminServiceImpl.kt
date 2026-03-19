@@ -31,11 +31,13 @@ import com.aandiclub.auth.user.event.UserProfileUpdatedEvent
 import com.aandiclub.auth.user.repository.UserRepository
 import com.aandiclub.auth.user.service.UserPublicCodeService
 import org.slf4j.LoggerFactory
+import org.springframework.dao.DataIntegrityViolationException
 import org.springframework.stereotype.Service
 import reactor.core.publisher.Flux
 import reactor.core.publisher.Mono
 import java.time.Clock
 import java.time.Duration
+import java.util.Locale
 import java.util.UUID
 
 @Service
@@ -59,38 +61,7 @@ class AdminServiceImpl(
 			.collectList()
 
 	override fun createUser(request: CreateAdminUserRequest): Mono<CreateAdminUserResponse> =
-		Mono.zip(
-			nextValidUserSequence(),
-			allocateCohortOrder(request.cohort),
-		).flatMap { tuple ->
-			val username = "user_${tuple.t1.toString().padStart(2, '0')}"
-			val cohortOrder = tuple.t2
-			val userTrack = userPublicCodeService.resolveTrack(request.role, null)
-			val publicCode = userPublicCodeService.generate(
-				role = request.role,
-				userTrack = userTrack,
-				cohort = request.cohort,
-				cohortOrder = cohortOrder,
-			)
-			when (request.provisionType) {
-				ProvisionType.PASSWORD -> createPasswordProvisionedUser(
-					username = username,
-					role = request.role,
-					userTrack = userTrack,
-					cohort = request.cohort,
-					cohortOrder = cohortOrder,
-					publicCode = publicCode,
-				)
-				ProvisionType.INVITE -> createInviteProvisionedUser(
-					username = username,
-					role = request.role,
-					userTrack = userTrack,
-					cohort = request.cohort,
-					cohortOrder = cohortOrder,
-					publicCode = publicCode,
-				)
-			}
-		}
+		createUserWithUniquePublicCode(request)
 
 	override fun resetPassword(userId: UUID): Mono<ResetPasswordResponse> =
 		userRepository.findById(userId)
@@ -130,23 +101,12 @@ class AdminServiceImpl(
 						role = role,
 						requestedTrack = if (role == UserRole.USER) user.userTrack else null,
 					)
-					val recalculatedPublicCode = userPublicCodeService.generate(
+					saveUpdatedUserRoleWithUniquePublicCode(
+						user = user,
 						role = role,
-						userTrack = resolvedTrack,
-						cohort = user.cohort,
+						resolvedTrack = resolvedTrack,
 						cohortOrder = resolvedCohortOrder,
-					)
-					userRepository.save(
-						user.copy(
-							role = role,
-							userTrack = resolvedTrack,
-							cohortOrder = resolvedCohortOrder,
-							publicCode = recalculatedPublicCode,
-						),
-					).flatMap { saved ->
-						userProfileEventPublisher.publishUserProfileUpdated(toUserProfileUpdatedEvent(saved))
-							.thenReturn(saved)
-					}.map { saved ->
+					).map { saved ->
 						logger.warn(
 							"security_audit event=admin_user_role_changed user_id={} username={} old_role={} new_role={} public_code={}",
 							saved.id,
@@ -208,25 +168,14 @@ class AdminServiceImpl(
 						role = resolvedRole,
 						requestedTrack = if (resolvedRole == UserRole.USER) request.userTrack ?: user.userTrack else null,
 					)
-					val recalculatedPublicCode = userPublicCodeService.generate(
-						role = resolvedRole,
-						userTrack = resolvedTrack,
-						cohort = resolvedCohort,
+					saveUpdatedUserWithUniquePublicCode(
+						user = user,
+						resolvedRole = resolvedRole,
+						resolvedTrack = resolvedTrack,
+						resolvedCohort = resolvedCohort,
 						cohortOrder = resolvedCohortOrder,
-					)
-					userRepository.save(
-						user.copy(
-							role = resolvedRole,
-							userTrack = resolvedTrack,
-							cohort = resolvedCohort,
-							cohortOrder = resolvedCohortOrder,
-							publicCode = recalculatedPublicCode,
-							nickname = normalizedNickname ?: user.nickname,
-						),
-					).flatMap { saved ->
-						userProfileEventPublisher.publishUserProfileUpdated(toUserProfileUpdatedEvent(saved))
-							.thenReturn(saved)
-					}.map { saved ->
+						resolvedNickname = normalizedNickname ?: user.nickname,
+					).map { saved ->
 					logger.warn(
 						"security_audit event=admin_user_updated user_id={} username={} old_role={} new_role={} old_track={} new_track={} old_cohort={} new_cohort={} old_cohort_order={} new_cohort_order={} public_code={}",
 						saved.id,
@@ -289,59 +238,7 @@ class AdminServiceImpl(
 			)
 
 			Flux.fromIterable(recipientEmails)
-				.concatMap { recipientEmail ->
-					Mono.zip(
-						nextValidUserSequence(),
-						resolveInviteCohortOrder(
-							cohort = provisioningProfile.cohort,
-							requestedCohortOrder = provisioningProfile.cohortOrder,
-						),
-					).flatMap { tuple ->
-						val username = "user_${tuple.t1.toString().padStart(2, '0')}"
-						val cohortOrder = tuple.t2
-						createInviteProvisionedUser(
-							username = username,
-							role = request.role,
-							userTrack = provisioningProfile.userTrack,
-							cohort = provisioningProfile.cohort,
-							cohortOrder = cohortOrder,
-							publicCode = username,
-						).flatMap { created ->
-							val inviteLink = created.inviteLink
-								?: return@flatMap Mono.error(
-									AppException(ErrorCode.INTERNAL_SERVER_ERROR, "Failed to issue invite link."),
-								)
-							val expiresAt = created.expiresAt
-								?: return@flatMap Mono.error(
-									AppException(ErrorCode.INTERNAL_SERVER_ERROR, "Failed to issue invite expiration."),
-								)
-							inviteMailService
-								.sendInviteMail(
-									toEmail = recipientEmail,
-									username = created.username,
-									role = created.role,
-									inviteUrl = inviteLink,
-									expiresAt = expiresAt,
-									userTrack = created.userTrack.name,
-									cohort = created.cohort,
-									cohortOrder = created.cohortOrder,
-									publicCode = created.publicCode,
-								)
-								.thenReturn(
-									InviteMailTarget(
-										email = recipientEmail,
-										username = created.username,
-										role = created.role,
-										inviteExpiresAt = expiresAt,
-										userTrack = created.userTrack.name,
-										cohort = created.cohort,
-										cohortOrder = created.cohortOrder,
-										publicCode = created.publicCode,
-									),
-								)
-						}
-					}
-				}
+				.concatMap { recipientEmail -> createInviteMailTarget(recipientEmail, request.role, provisioningProfile) }
 				.collectList()
 				.map { invites ->
 					val singleInvite = invites.singleOrNull()
@@ -357,6 +254,127 @@ class AdminServiceImpl(
 						publicCode = singleInvite?.publicCode,
 					)
 				}
+		}
+
+	private fun createUserWithUniquePublicCode(
+		request: CreateAdminUserRequest,
+		attempt: Int = 0,
+	): Mono<CreateAdminUserResponse> =
+		nextValidUserSequence().flatMap { sequence ->
+			val username = "user_${sequence.toString().padStart(2, '0')}"
+			allocateCohortOrder(request.cohort).flatMap { cohortOrder ->
+				val userTrack = userPublicCodeService.resolveTrack(request.role, null)
+				val publicCode = userPublicCodeService.generate(
+					role = request.role,
+					userTrack = userTrack,
+					cohort = request.cohort,
+					cohortOrder = cohortOrder,
+				)
+				ensurePublicCodeAvailable(publicCode = publicCode)
+					.flatMap { available ->
+						if (!available) {
+							retryCreateUserForPublicCodeConflict(request, attempt)
+						} else {
+							when (request.provisionType) {
+								ProvisionType.PASSWORD -> createPasswordProvisionedUser(
+									username = username,
+									role = request.role,
+									userTrack = userTrack,
+									cohort = request.cohort,
+									cohortOrder = cohortOrder,
+									publicCode = publicCode,
+								)
+								ProvisionType.INVITE -> createInviteProvisionedUser(
+									username = username,
+									role = request.role,
+									userTrack = userTrack,
+									cohort = request.cohort,
+									cohortOrder = cohortOrder,
+									publicCode = publicCode,
+								)
+							}
+						}
+					}
+			}
+		}.onErrorResume(DataIntegrityViolationException::class.java) { ex ->
+			handleCreatePublicCodeConflict(ex, attempt) { createUserWithUniquePublicCode(request, attempt + 1) }
+		}
+
+	private fun createInviteMailTarget(
+		recipientEmail: String,
+		role: UserRole,
+		provisioningProfile: InviteProvisioningProfile,
+		attempt: Int = 0,
+	): Mono<InviteMailTarget> =
+		nextValidUserSequence().flatMap { sequence ->
+			val username = "user_${sequence.toString().padStart(2, '0')}"
+			resolveInviteCohortOrder(
+				cohort = provisioningProfile.cohort,
+				requestedCohortOrder = provisioningProfile.cohortOrder,
+			).flatMap { cohortOrder ->
+				val publicCode = userPublicCodeService.generate(
+					role = role,
+					userTrack = provisioningProfile.userTrack,
+					cohort = provisioningProfile.cohort,
+					cohortOrder = cohortOrder,
+				)
+				ensurePublicCodeAvailable(publicCode = publicCode)
+					.flatMap { available ->
+						if (!available) {
+							handleInvitePublicCodeConflict(provisioningProfile, attempt)
+								.flatMap { createInviteMailTarget(recipientEmail, role, provisioningProfile, attempt + 1) }
+						} else {
+							createInviteProvisionedUser(
+								username = username,
+								role = role,
+								userTrack = provisioningProfile.userTrack,
+								cohort = provisioningProfile.cohort,
+								cohortOrder = cohortOrder,
+								publicCode = publicCode,
+							).flatMap { created ->
+								val inviteLink = created.inviteLink
+									?: return@flatMap Mono.error(
+										AppException(ErrorCode.INTERNAL_SERVER_ERROR, "Failed to issue invite link."),
+									)
+								val expiresAt = created.expiresAt
+									?: return@flatMap Mono.error(
+										AppException(ErrorCode.INTERNAL_SERVER_ERROR, "Failed to issue invite expiration."),
+									)
+								inviteMailService
+									.sendInviteMail(
+										toEmail = recipientEmail,
+										username = created.username,
+										role = created.role,
+										inviteUrl = inviteLink,
+										expiresAt = expiresAt,
+										userTrack = created.userTrack.name,
+										cohort = created.cohort,
+										cohortOrder = created.cohortOrder,
+										publicCode = created.publicCode,
+									)
+									.thenReturn(
+										InviteMailTarget(
+											email = recipientEmail,
+											username = created.username,
+											role = created.role,
+											inviteExpiresAt = expiresAt,
+											userTrack = created.userTrack.name,
+											cohort = created.cohort,
+											cohortOrder = created.cohortOrder,
+											publicCode = created.publicCode,
+										),
+									)
+							}
+						}
+					}
+			}
+		}.onErrorResume(DataIntegrityViolationException::class.java) { ex ->
+			if (!isPublicCodeUniqueViolation(ex)) {
+				Mono.error(ex)
+			} else {
+				handleInvitePublicCodeConflict(provisioningProfile, attempt)
+					.flatMap { createInviteMailTarget(recipientEmail, role, provisioningProfile, attempt + 1) }
+			}
 		}
 
 	private fun createPasswordProvisionedUser(
@@ -381,7 +399,10 @@ class AdminServiceImpl(
 				forcePasswordChange = true,
 				isActive = true,
 			),
-		).map { saved ->
+		).flatMap { saved ->
+			userProfileEventPublisher.publishUserProfileUpdated(toUserProfileUpdatedEvent(saved))
+				.thenReturn(saved)
+		}.map { saved ->
 			logger.warn(
 				"security_audit event=admin_user_created type=password user_id={} username={} role={} track={} cohort={} cohort_order={} public_code={}",
 				saved.id,
@@ -442,29 +463,146 @@ class AdminServiceImpl(
 			).flatMap { savedInvite ->
 				inviteTokenCacheService.cacheToken(savedInvite.tokenHash, rawInviteToken, expiresAt)
 					.thenReturn(savedInvite)
-			}.map {
+			}.then(
+				userProfileEventPublisher.publishUserProfileUpdated(toUserProfileUpdatedEvent(savedUser))
+					.thenReturn(savedUser),
+			).map { publishedUser ->
 				logger.warn(
 					"security_audit event=admin_user_created type=invite user_id={} username={} role={} track={} cohort={} cohort_order={} public_code={} expires_at={}",
-					savedUser.id,
-					savedUser.username,
-					savedUser.role,
-					savedUser.userTrack,
-					savedUser.cohort,
-					savedUser.cohortOrder,
-					savedUser.publicCode,
+					publishedUser.id,
+					publishedUser.username,
+					publishedUser.role,
+					publishedUser.userTrack,
+					publishedUser.cohort,
+					publishedUser.cohortOrder,
+					publishedUser.publicCode,
 					expiresAt,
 				)
 				CreateAdminUserResponse(
-					id = requireNotNull(savedUser.id),
-					username = savedUser.username,
-					role = savedUser.role,
-					userTrack = savedUser.userTrack,
-					cohort = savedUser.cohort,
-					cohortOrder = savedUser.cohortOrder,
-					publicCode = savedUser.publicCode,
+					id = requireNotNull(publishedUser.id),
+					username = publishedUser.username,
+					role = publishedUser.role,
+					userTrack = publishedUser.userTrack,
+					cohort = publishedUser.cohort,
+					cohortOrder = publishedUser.cohortOrder,
+					publicCode = publishedUser.publicCode,
 					provisionType = ProvisionType.INVITE,
 					inviteLink = "${inviteProperties.activationBaseUrl}?token=$rawInviteToken",
 					expiresAt = expiresAt,
+				)
+			}
+		}
+	}
+
+	private fun saveUpdatedUserRoleWithUniquePublicCode(
+		user: UserEntity,
+		role: UserRole,
+		resolvedTrack: UserTrack,
+		cohortOrder: Int,
+		attempt: Int = 0,
+	): Mono<UserEntity> {
+		val recalculatedPublicCode = userPublicCodeService.generate(
+			role = role,
+			userTrack = resolvedTrack,
+			cohort = user.cohort,
+			cohortOrder = cohortOrder,
+		)
+		return ensurePublicCodeAvailable(
+			publicCode = recalculatedPublicCode,
+			excludedUserId = requireNotNull(user.id),
+		).flatMap { available ->
+			if (!available) {
+				retryUpdatedUserForPublicCodeConflict(user.cohort, attempt) { nextCohortOrder ->
+					saveUpdatedUserRoleWithUniquePublicCode(
+						user = user,
+						role = role,
+						resolvedTrack = resolvedTrack,
+						cohortOrder = nextCohortOrder,
+						attempt = attempt + 1,
+					)
+				}
+			} else {
+				userRepository.save(
+					user.copy(
+						role = role,
+						userTrack = resolvedTrack,
+						cohortOrder = cohortOrder,
+						publicCode = recalculatedPublicCode,
+					),
+				).flatMap { saved ->
+					userProfileEventPublisher.publishUserProfileUpdated(toUserProfileUpdatedEvent(saved))
+						.thenReturn(saved)
+				}
+			}
+		}.onErrorResume(DataIntegrityViolationException::class.java) { ex ->
+			handleUpdatePublicCodeConflict(ex, user.cohort, attempt) { nextCohortOrder ->
+				saveUpdatedUserRoleWithUniquePublicCode(
+					user = user,
+					role = role,
+					resolvedTrack = resolvedTrack,
+					cohortOrder = nextCohortOrder,
+					attempt = attempt + 1,
+				)
+			}
+		}
+	}
+
+	private fun saveUpdatedUserWithUniquePublicCode(
+		user: UserEntity,
+		resolvedRole: UserRole,
+		resolvedTrack: UserTrack,
+		resolvedCohort: Int,
+		cohortOrder: Int,
+		resolvedNickname: String?,
+		attempt: Int = 0,
+	): Mono<UserEntity> {
+		val recalculatedPublicCode = userPublicCodeService.generate(
+			role = resolvedRole,
+			userTrack = resolvedTrack,
+			cohort = resolvedCohort,
+			cohortOrder = cohortOrder,
+		)
+		return ensurePublicCodeAvailable(
+			publicCode = recalculatedPublicCode,
+			excludedUserId = requireNotNull(user.id),
+		).flatMap { available ->
+			if (!available) {
+				retryUpdatedUserForPublicCodeConflict(resolvedCohort, attempt) { nextCohortOrder ->
+					saveUpdatedUserWithUniquePublicCode(
+						user = user,
+						resolvedRole = resolvedRole,
+						resolvedTrack = resolvedTrack,
+						resolvedCohort = resolvedCohort,
+						cohortOrder = nextCohortOrder,
+						resolvedNickname = resolvedNickname,
+						attempt = attempt + 1,
+					)
+				}
+			} else {
+				userRepository.save(
+					user.copy(
+						role = resolvedRole,
+						userTrack = resolvedTrack,
+						cohort = resolvedCohort,
+						cohortOrder = cohortOrder,
+						publicCode = recalculatedPublicCode,
+						nickname = resolvedNickname,
+					),
+				).flatMap { saved ->
+					userProfileEventPublisher.publishUserProfileUpdated(toUserProfileUpdatedEvent(saved))
+						.thenReturn(saved)
+				}
+			}
+		}.onErrorResume(DataIntegrityViolationException::class.java) { ex ->
+			handleUpdatePublicCodeConflict(ex, resolvedCohort, attempt) { nextCohortOrder ->
+				saveUpdatedUserWithUniquePublicCode(
+					user = user,
+					resolvedRole = resolvedRole,
+					resolvedTrack = resolvedTrack,
+					resolvedCohort = resolvedCohort,
+					cohortOrder = nextCohortOrder,
+					resolvedNickname = resolvedNickname,
+					attempt = attempt + 1,
 				)
 			}
 		}
@@ -486,10 +624,13 @@ class AdminServiceImpl(
 		}
 		val userTrack = UserTrack.valueOf(normalizedTrack)
 
-		val cohort = rawCohort ?: 0
-		if (cohort < 0) {
-			throw AppException(ErrorCode.INVALID_REQUEST, "cohort must be greater than or equal to 0.")
-		}
+			val cohort = rawCohort ?: 0
+			if (cohort < 0) {
+				throw AppException(ErrorCode.INVALID_REQUEST, "cohort must be greater than or equal to 0.")
+			}
+			if (cohort > MAX_COHORT) {
+				throw AppException(ErrorCode.INVALID_REQUEST, "cohort must be between 0 and $MAX_COHORT.")
+			}
 
 		if (rawCohortOrder != null && rawCohortOrder < 0) {
 			throw AppException(ErrorCode.INVALID_REQUEST, "cohortOrder must be greater than or equal to 0.")
@@ -559,6 +700,77 @@ class AdminServiceImpl(
 			}
 		}
 
+	private fun ensurePublicCodeAvailable(publicCode: String, excludedUserId: UUID? = null): Mono<Boolean> =
+		userRepository.findByPublicCode(publicCode)
+			.map { existing -> excludedUserId != null && existing.id == excludedUserId }
+			.defaultIfEmpty(true)
+
+	private fun retryCreateUserForPublicCodeConflict(
+		request: CreateAdminUserRequest,
+		attempt: Int,
+	): Mono<CreateAdminUserResponse> =
+		if (attempt + 1 >= PUBLIC_CODE_RETRY_LIMIT) {
+			Mono.error(exhaustedUniquePublicCodeError())
+		} else {
+			createUserWithUniquePublicCode(request, attempt + 1)
+		}
+
+	private fun handleInvitePublicCodeConflict(
+		provisioningProfile: InviteProvisioningProfile,
+		attempt: Int,
+	): Mono<Unit> =
+		if (provisioningProfile.cohortOrder != null) {
+			Mono.error(AppException(ErrorCode.INVALID_REQUEST, "Requested cohortOrder is already in use."))
+		} else if (attempt + 1 >= PUBLIC_CODE_RETRY_LIMIT) {
+			Mono.error(exhaustedUniquePublicCodeError())
+		} else {
+			Mono.just(Unit)
+		}
+
+	private fun retryUpdatedUserForPublicCodeConflict(
+		cohort: Int,
+		attempt: Int,
+		retry: (Int) -> Mono<UserEntity>,
+	): Mono<UserEntity> =
+		if (attempt + 1 >= PUBLIC_CODE_RETRY_LIMIT) {
+			Mono.error(exhaustedUniquePublicCodeError())
+		} else {
+			allocateCohortOrder(cohort).flatMap(retry)
+		}
+
+	private fun handleCreatePublicCodeConflict(
+		ex: DataIntegrityViolationException,
+		attempt: Int,
+		retry: () -> Mono<CreateAdminUserResponse>,
+	): Mono<CreateAdminUserResponse> =
+		if (!isPublicCodeUniqueViolation(ex)) {
+			Mono.error(ex)
+		} else if (attempt + 1 >= PUBLIC_CODE_RETRY_LIMIT) {
+			Mono.error(exhaustedUniquePublicCodeError())
+		} else {
+			retry()
+		}
+
+	private fun handleUpdatePublicCodeConflict(
+		ex: DataIntegrityViolationException,
+		cohort: Int,
+		attempt: Int,
+		retry: (Int) -> Mono<UserEntity>,
+	): Mono<UserEntity> =
+		if (!isPublicCodeUniqueViolation(ex)) {
+			Mono.error(ex)
+		} else {
+			retryUpdatedUserForPublicCodeConflict(cohort, attempt, retry)
+		}
+
+	private fun exhaustedUniquePublicCodeError(): AppException =
+		AppException(ErrorCode.INTERNAL_SERVER_ERROR, "Failed to allocate a unique public code.")
+
+	private fun isPublicCodeUniqueViolation(ex: DataIntegrityViolationException): Boolean {
+		val message = (ex.mostSpecificCause?.message ?: ex.message).orEmpty().lowercase(Locale.ROOT)
+		return message.contains("ux_users_public_code") || message.contains("public_code")
+	}
+
 	private fun toAdminUserSummary(user: UserEntity, now: java.time.Instant): Mono<AdminUserSummary> {
 		val baseSummary = AdminUserSummary(
 			id = requireNotNull(user.id),
@@ -613,12 +825,14 @@ class AdminServiceImpl(
 	companion object {
 		private val logger = LoggerFactory.getLogger(AdminServiceImpl::class.java)
 		private const val DEFAULT_USER_TRACK = "NO"
-		private val ALLOWED_USER_TRACKS = setOf("NO", "FL", "SP")
-		private val NICKNAME_PATTERN = Regex("^[\\p{L}\\p{N} _.-]{1,40}$")
-		private const val USER_PROFILE_UPDATED_EVENT_TYPE = "UserProfileUpdated"
-		private const val MIN_COHORT_ORDER = 1
-		private const val MAX_COHORT_ORDER = 99
-		private const val MIN_SEQUENCE_VALUE = 1L
-		private const val SEQUENCE_RETRY_LIMIT = 10
+			private val ALLOWED_USER_TRACKS = setOf("NO", "FL", "SP")
+			private val NICKNAME_PATTERN = Regex("^[\\p{L}\\p{N} _.-]{1,40}$")
+			private const val USER_PROFILE_UPDATED_EVENT_TYPE = "UserProfileUpdated"
+			private const val MAX_COHORT = 9
+			private const val MIN_COHORT_ORDER = 1
+			private const val MAX_COHORT_ORDER = 99
+			private const val PUBLIC_CODE_RETRY_LIMIT = 10
+			private const val MIN_SEQUENCE_VALUE = 1L
+			private const val SEQUENCE_RETRY_LIMIT = 10
+		}
 	}
-}

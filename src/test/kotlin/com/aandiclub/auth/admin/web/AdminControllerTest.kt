@@ -145,6 +145,28 @@ class AdminControllerTest : FunSpec({
 			.jsonPath("$.error.code").isEqualTo("INVALID_REQUEST")
 	}
 
+	test("POST /v1/admin/invite-mail with unsupported cohort returns bad request") {
+		webTestClient.post()
+			.uri("/v1/admin/invite-mail")
+			.contentType(MediaType.APPLICATION_JSON)
+			.bodyValue(
+				"""
+				{
+					"emails": [
+						"$testEmail"
+					],
+					"role": "USER",
+					"cohort": 10
+				}
+				""".trimIndent()
+			)
+			.exchange()
+			.expectStatus().isBadRequest
+			.expectBody()
+			.jsonPath("$.success").isEqualTo(false)
+			.jsonPath("$.error.code").isEqualTo("INVALID_REQUEST")
+	}
+
 	test("POST /v1/admin/invite-mail with empty emails array returns bad request") {
 		webTestClient.post()
 			.uri("/v1/admin/invite-mail")

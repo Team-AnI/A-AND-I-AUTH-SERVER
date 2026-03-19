@@ -2,6 +2,7 @@ package com.aandiclub.auth.admin.web.dto
 
 import com.aandiclub.auth.user.domain.UserRole
 import jakarta.validation.constraints.Email
+import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
 import jakarta.validation.constraints.NotEmpty
 import jakarta.validation.constraints.Size
@@ -14,7 +15,8 @@ data class InviteMailRequest(
 	@field:Size(max = 100, message = "emails size must be less than or equal to 100")
 	val emails: List<@Email(message = "emails must contain valid email addresses") String>,
 	val role: UserRole = UserRole.USER,
-	@field:Min(value = 0, message = "cohort must be greater than or equal to 0")
+	@field:Min(value = 0, message = "cohort must be between 0 and 9")
+	@field:Max(value = 9, message = "cohort must be between 0 and 9")
 	val cohort: Int? = null,
 	@field:Min(value = 0, message = "cohortOrder must be greater than or equal to 0")
 	val cohortOrder: Int? = null,
