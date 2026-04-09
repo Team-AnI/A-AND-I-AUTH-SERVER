@@ -86,11 +86,11 @@ class SecurityConfig {
 				it.pathMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 				it.pathMatchers(
 					"/v1/auth/**",
-					"/api/v2/auth/**",
+					"/v2/auth/**",
 					"/activate",
-					"/api/v2/activate",
+					"/v2/activate",
 					"/api/ping/**",
-					"/api/v2/ping/**",
+					"/v2/ping/**",
 					"/v3/api-docs/**",
 					"/swagger-ui.html",
 					"/swagger-ui/**",
@@ -98,11 +98,11 @@ class SecurityConfig {
 					"/actuator/info",
 				).permitAll()
 				it.pathMatchers("/v1/me", "/v1/me/**").hasAnyRole("USER", "ORGANIZER", "ADMIN")
-				it.pathMatchers("/api/v2/me", "/api/v2/me/**").hasAnyRole("USER", "ORGANIZER", "ADMIN")
+				it.pathMatchers("/v2/me", "/v2/me/**").hasAnyRole("USER", "ORGANIZER", "ADMIN")
 				it.pathMatchers(HttpMethod.GET, "/v1/users/lookup").hasAnyRole("ORGANIZER", "ADMIN")
-				it.pathMatchers(HttpMethod.GET, "/api/v2/users/lookup").hasAnyRole("ORGANIZER", "ADMIN")
+				it.pathMatchers(HttpMethod.GET, "/v2/users/lookup").hasAnyRole("ORGANIZER", "ADMIN")
 				it.pathMatchers("/v1/admin/**").hasRole("ADMIN")
-				it.pathMatchers("/api/v2/admin/**").hasRole("ADMIN")
+				it.pathMatchers("/v2/admin/**").hasRole("ADMIN")
 				it.anyExchange().authenticated()
 			}
 			.addFilterAt(v2HeaderValidationWebFilter, SecurityWebFiltersOrder.FIRST)
