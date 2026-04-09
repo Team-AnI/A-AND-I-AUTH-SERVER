@@ -22,7 +22,7 @@ class V2AuthControllerTest : FunSpec({
 		.controllerAdvice(V2ExceptionHandler(errorFactory))
 		.build()
 
-	test("POST /api/v2/auth/login returns v2 envelope") {
+	test("POST /v2/auth/login returns v2 envelope") {
 		every { authService.login(any()) } returns Mono.just(
 			LoginResponse(
 				accessToken = "access",
@@ -35,7 +35,7 @@ class V2AuthControllerTest : FunSpec({
 		)
 
 		webTestClient.post()
-			.uri("/api/v2/auth/login")
+			.uri("/v2/auth/login")
 			.contentType(MediaType.APPLICATION_JSON)
 			.bodyValue("""{"username":"user_01","password":"password"}""")
 			.exchange()

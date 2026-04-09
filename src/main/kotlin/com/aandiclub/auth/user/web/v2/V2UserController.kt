@@ -36,7 +36,7 @@ import org.springframework.web.bind.annotation.RestController
 import reactor.core.publisher.Mono
 
 @RestController
-@RequestMapping("/api/v2/me")
+@RequestMapping("/v2/me")
 @Validated
 class V2UserController(
 	private val userService: UserService,
@@ -114,7 +114,7 @@ class V2UserController(
 }
 
 @RestController
-@RequestMapping("/api/v2/users")
+@RequestMapping("/v2/users")
 @Validated
 class V2UserLookupController(
 	private val userService: UserService,

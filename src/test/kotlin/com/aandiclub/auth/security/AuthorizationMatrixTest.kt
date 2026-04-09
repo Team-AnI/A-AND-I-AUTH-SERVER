@@ -92,9 +92,9 @@ class AuthorizationMatrixTest : StringSpec() {
 				.expectStatus().isUnauthorized
 		}
 
-		"GET /api/v2/me requires v2 headers" {
+		"GET /v2/me requires v2 headers" {
 			webClient().get()
-				.uri("/api/v2/me")
+				.uri("/v2/me")
 				.exchange()
 				.expectStatus().isBadRequest
 				.expectBody()
@@ -102,9 +102,9 @@ class AuthorizationMatrixTest : StringSpec() {
 				.jsonPath("$.error.code").isEqualTo(33101)
 		}
 
-		"GET /api/v2/me requires Authenticate header when v2 headers are present" {
+		"GET /v2/me requires Authenticate header when v2 headers are present" {
 			webClient().get()
-				.uri("/api/v2/me")
+				.uri("/v2/me")
 				.headers { headers ->
 					headers.add("deviceOS", "IOS")
 					headers.add("timestamp", Instant.now().toString())
@@ -133,13 +133,13 @@ class AuthorizationMatrixTest : StringSpec() {
 				.jsonPath("$.data.role").isEqualTo("USER")
 		}
 
-		"GET /api/v2/me allows USER role with Authenticate header" {
+		"GET /v2/me allows USER role with Authenticate header" {
 			val userId = UUID.randomUUID()
 			val username = "tester_user_v2"
 			insertUser(userId, username, UserRole.USER)
 			val token = accessToken(userId, username, UserRole.USER)
 			webClient().get()
-				.uri("/api/v2/me")
+				.uri("/v2/me")
 				.headers {
 					it.add("Authenticate", "Bearer $token")
 					it.add("deviceOS", "IOS")
@@ -268,10 +268,10 @@ class AuthorizationMatrixTest : StringSpec() {
 				.expectStatus().isForbidden
 		}
 
-		"GET /api/v2/admin/ping denies USER role with v2 error envelope" {
+		"GET /v2/admin/ping denies USER role with v2 error envelope" {
 			val token = accessToken(UUID.randomUUID(), "tester_user_denied_v2", UserRole.USER)
 			webClient().get()
-				.uri("/api/v2/admin/ping")
+				.uri("/v2/admin/ping")
 				.headers {
 					it.add("Authenticate", "Bearer $token")
 					it.add("deviceOS", "IOS")

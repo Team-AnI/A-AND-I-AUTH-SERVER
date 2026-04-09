@@ -25,7 +25,7 @@ import org.springframework.web.bind.annotation.RestController
 import reactor.core.publisher.Mono
 
 @RestController
-@RequestMapping("/api/v2/auth")
+@RequestMapping("/v2/auth")
 @Validated
 class V2AuthController(
 	private val authService: AuthService,
@@ -62,7 +62,7 @@ class V2AuthController(
 }
 
 @RestController
-@RequestMapping("/api/v2")
+@RequestMapping("/v2")
 @Validated
 class V2ActivationController(
 	private val authService: AuthService,

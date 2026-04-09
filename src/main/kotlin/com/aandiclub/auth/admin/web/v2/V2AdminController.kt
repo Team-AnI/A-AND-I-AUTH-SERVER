@@ -40,7 +40,7 @@ import reactor.core.publisher.Mono
 import java.util.UUID
 
 @RestController
-@RequestMapping("/api/v2/admin")
+@RequestMapping("/v2/admin")
 @Validated
 class V2AdminController(
 	private val adminService: AdminService,
