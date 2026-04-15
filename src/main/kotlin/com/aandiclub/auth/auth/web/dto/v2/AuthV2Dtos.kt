@@ -14,13 +14,11 @@ data class V2LoginRequest(
 )
 
 data class V2RefreshRequest(
-	@field:NotBlank(message = "refreshToken is required")
-	val refreshToken: String,
+	val refreshToken: String? = null,
 )
 
 data class V2LogoutRequest(
-	@field:NotBlank(message = "refreshToken is required")
-	val refreshToken: String,
+	val refreshToken: String? = null,
 )
 
 data class V2ActivateRequest(
@@ -39,7 +37,7 @@ data class V2ActivateRequest(
 
 data class V2LoginResponse(
 	val accessToken: String,
-	val refreshToken: String,
+	val refreshToken: String?,
 	val expiresIn: Long,
 	val tokenType: String,
 	val forcePasswordChange: Boolean,
