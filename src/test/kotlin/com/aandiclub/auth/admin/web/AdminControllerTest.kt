@@ -6,6 +6,7 @@ import com.aandiclub.auth.admin.web.dto.InviteMailTarget
 import com.aandiclub.auth.common.error.AppException
 import com.aandiclub.auth.common.error.ErrorCode
 import com.aandiclub.auth.common.error.GlobalExceptionHandler
+import com.aandiclub.auth.common.error.v2.V2ErrorFactory
 import com.aandiclub.auth.user.domain.UserRole
 import io.kotest.core.spec.style.FunSpec
 import io.kotest.matchers.shouldBe
@@ -26,7 +27,7 @@ class AdminControllerTest : FunSpec({
 	val adminService = mockk<AdminService>(relaxed = true)
 	val validator = LocalValidatorFactoryBean().apply { afterPropertiesSet() }
 	val webTestClient = WebTestClient.bindToController(AdminController(adminService))
-		.controllerAdvice(GlobalExceptionHandler())
+		.controllerAdvice(GlobalExceptionHandler(V2ErrorFactory()))
 		.validator(validator)
 		.build()
 

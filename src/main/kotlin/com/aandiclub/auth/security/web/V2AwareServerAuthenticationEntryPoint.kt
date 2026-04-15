@@ -2,6 +2,8 @@ package com.aandiclub.auth.security.web
 
 import com.aandiclub.auth.common.error.v2.V2ErrorFactory
 import com.aandiclub.auth.common.error.v2.V2ErrorResponseWriter
+import com.aandiclub.auth.common.logging.ApiLogContext
+import com.aandiclub.auth.common.logging.ApiLogError
 import com.aandiclub.auth.common.web.v2.V2ApiPaths
 import org.springframework.http.HttpStatus
 import org.springframework.security.core.AuthenticationException
@@ -24,15 +26,20 @@ class V2AwareServerAuthenticationEntryPoint(
 			return fallback.commence(exchange, ex)
 		}
 
+		val error = errorFactory.unauthorized(
+			path = path,
+			message = "Authentication is required.",
+			value = "UNAUTHORIZED",
+			detail = 1,
+		)
+		ApiLogContext.get(exchange)?.markFailure(
+			reason = error.message,
+			error = ApiLogError(code = error.code, message = error.message, value = error.value, alert = error.alert),
+		)
 		return responseWriter.write(
 			response = exchange.response,
 			status = HttpStatus.UNAUTHORIZED,
-			error = errorFactory.unauthorized(
-				path = path,
-				message = "Authentication is required.",
-				value = "UNAUTHORIZED",
-				detail = 101,
-			),
+			error = error,
 		)
 	}
 }

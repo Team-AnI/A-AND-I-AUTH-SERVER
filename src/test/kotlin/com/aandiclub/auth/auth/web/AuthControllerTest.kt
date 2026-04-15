@@ -8,6 +8,7 @@ import com.aandiclub.auth.auth.web.dto.RefreshResponse
 import com.aandiclub.auth.common.error.AppException
 import com.aandiclub.auth.common.error.ErrorCode
 import com.aandiclub.auth.common.error.GlobalExceptionHandler
+import com.aandiclub.auth.common.error.v2.V2ErrorFactory
 import com.aandiclub.auth.user.domain.UserRole
 import io.kotest.core.spec.style.FunSpec
 import io.mockk.every
@@ -20,7 +21,7 @@ import java.util.UUID
 class AuthControllerTest : FunSpec({
 	val authService = mockk<AuthService>()
 	val webTestClient = WebTestClient.bindToController(AuthController(authService))
-		.controllerAdvice(GlobalExceptionHandler())
+		.controllerAdvice(GlobalExceptionHandler(V2ErrorFactory()))
 		.build()
 
 	test("POST /v1/auth/login returns token payload") {

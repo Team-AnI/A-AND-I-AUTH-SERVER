@@ -3,6 +3,7 @@ package com.aandiclub.auth.auth.web
 import com.aandiclub.auth.auth.service.AuthService
 import com.aandiclub.auth.auth.web.dto.ActivateResponse
 import com.aandiclub.auth.common.error.GlobalExceptionHandler
+import com.aandiclub.auth.common.error.v2.V2ErrorFactory
 import io.kotest.core.spec.style.FunSpec
 import io.mockk.every
 import io.mockk.mockk
@@ -13,7 +14,7 @@ import reactor.core.publisher.Mono
 class ActivationControllerTest : FunSpec({
 	val authService = mockk<AuthService>()
 	val webTestClient = WebTestClient.bindToController(ActivationController(authService))
-		.controllerAdvice(GlobalExceptionHandler())
+		.controllerAdvice(GlobalExceptionHandler(V2ErrorFactory()))
 		.build()
 
 	test("POST /activate returns success") {

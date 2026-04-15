@@ -2,6 +2,8 @@ package com.aandiclub.auth.security.web
 
 import com.aandiclub.auth.common.error.v2.V2ErrorFactory
 import com.aandiclub.auth.common.error.v2.V2ErrorResponseWriter
+import com.aandiclub.auth.common.logging.ApiLogContext
+import com.aandiclub.auth.common.logging.ApiLogError
 import com.aandiclub.auth.common.web.v2.V2ApiPaths
 import org.springframework.http.HttpStatus
 import org.springframework.security.access.AccessDeniedException
@@ -24,15 +26,20 @@ class V2AwareServerAccessDeniedHandler(
 			return fallback.handle(exchange, denied)
 		}
 
+		val error = errorFactory.forbidden(
+			path = path,
+			message = "You do not have permission to access this resource.",
+			value = "FORBIDDEN",
+			detail = 1,
+		)
+		ApiLogContext.get(exchange)?.markFailure(
+			reason = error.message,
+			error = ApiLogError(code = error.code, message = error.message, value = error.value, alert = error.alert),
+		)
 		return responseWriter.write(
 			response = exchange.response,
 			status = HttpStatus.FORBIDDEN,
-			error = errorFactory.forbidden(
-				path = path,
-				message = "You do not have permission to access this resource.",
-				value = "FORBIDDEN",
-				detail = 101,
-			),
+			error = error,
 		)
 	}
 }

@@ -11,7 +11,7 @@ import reactor.core.publisher.Mono
 
 @Component
 class V2ErrorResponseWriter(
-	private val objectMapper: ObjectMapper = ObjectMapper().findAndRegisterModules(),
+	private val objectMapper: ObjectMapper,
 ) {
 	fun write(response: ServerHttpResponse, status: HttpStatus, error: V2ApiError): Mono<Void> {
 		if (response.isCommitted) {

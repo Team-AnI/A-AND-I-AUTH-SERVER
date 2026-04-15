@@ -29,6 +29,9 @@ class V2ErrorFactory {
 	fun forbidden(path: String, message: String, value: String = "FORBIDDEN", detail: Int = 1): V2ApiError =
 		V2ErrorSpec(V2ErrorCategory.AUTHORIZATION, detail, value, message, message).toApiError(resolveService(path))
 
+	fun notFound(path: String, message: String, value: String = "NOT_FOUND", detail: Int = 1): V2ApiError =
+		V2ErrorSpec(V2ErrorCategory.NOT_FOUND, detail, value, message, message).toApiError(resolveService(path))
+
 	fun internal(path: String, message: String, value: String = "INTERNAL_SERVER_ERROR", detail: Int = 1): V2ApiError =
 		V2ErrorSpec(V2ErrorCategory.INTERNAL, detail, value, message, message).toApiError(resolveService(path))
 
@@ -49,7 +52,7 @@ class V2ErrorFactory {
 	) {
 		fun toApiError(service: V2ServiceCode): V2ApiError =
 			V2ApiError(
-				code = service.digit * 10000 + category.digit * 1000 + detail,
+				code = service.digit * 10000 + category.code * 100 + detail.coerceIn(1, 99),
 				message = message,
 				value = value,
 				alert = alert,
@@ -66,15 +69,15 @@ class V2ErrorFactory {
 		COMMON(9),
 	}
 
-	private enum class V2ErrorCategory(val digit: Int) {
-		GENERAL(0),
-		AUTHENTICATION(1),
-		AUTHORIZATION(2),
-		VALIDATION(3),
-		BUSINESS(4),
-		NOT_FOUND(5),
-		CONFLICT(6),
-		EXTERNAL(7),
-		INTERNAL(8),
+	private enum class V2ErrorCategory(val code: Int) {
+		GENERAL(1),
+		AUTHENTICATION(11),
+		AUTHORIZATION(21),
+		VALIDATION(31),
+		BUSINESS(41),
+		NOT_FOUND(51),
+		CONFLICT(61),
+		EXTERNAL(71),
+		INTERNAL(88),
 	}
 }
