@@ -33,9 +33,9 @@ class V2ErrorFactory {
 		V2ErrorSpec(V2ErrorCategory.INTERNAL, detail, value, message, message).toApiError(resolveService(path))
 
 	private fun resolveService(path: String): V2ServiceCode = when {
-		path.startsWith("/api/v2/me") || path.startsWith("/api/v2/users") -> V2ServiceCode.USER
-		path.startsWith("/api/v2/admin/users") -> V2ServiceCode.USER
-		path.startsWith("/api/v2/ping") -> V2ServiceCode.COMMON
+		path.startsWith("/v2/me") || path.startsWith("/v2/users") -> V2ServiceCode.USER
+		path.startsWith("/v2/admin/users") -> V2ServiceCode.USER
+		path.startsWith("/v2/ping") -> V2ServiceCode.COMMON
 		V2ApiPaths.isV2(path) -> V2ServiceCode.AUTH
 		else -> V2ServiceCode.COMMON
 	}

@@ -35,7 +35,7 @@ class OpenApiDocsTest : StringSpec() {
 				.expectBody()
 				.jsonPath("$.info.version").isEqualTo("v1")
 				.jsonPath("$.paths['/v1/me']").exists()
-				.jsonPath("$.paths['/api/v2/me']").doesNotExist()
+				.jsonPath("$.paths['/v2/me']").doesNotExist()
 				.jsonPath("$.components.securitySchemes.bearerAuth.scheme").isEqualTo("bearer")
 		}
 
@@ -46,11 +46,11 @@ class OpenApiDocsTest : StringSpec() {
 				.expectStatus().isOk
 				.expectBody()
 				.jsonPath("$.info.version").isEqualTo("v2")
-				.jsonPath("$.paths['/api/v2/me']").exists()
+				.jsonPath("$.paths['/v2/me']").exists()
 				.jsonPath("$.paths['/v1/me']").doesNotExist()
 				.jsonPath("$.components.securitySchemes.authenticateHeader.name").isEqualTo("Authenticate")
-				.jsonPath("$.paths['/api/v2/me'].get.security[0].authenticateHeader").isArray()
-		}
+				.jsonPath("$.paths['/v2/me'].get.security[0].authenticateHeader").isArray()
+	}
 
 		"GET /swagger-ui.html should be publicly accessible" {
 			webClient().get()

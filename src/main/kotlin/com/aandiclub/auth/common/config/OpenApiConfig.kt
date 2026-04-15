@@ -59,7 +59,7 @@ class OpenApiConfig(
 	fun v2GroupedOpenApi(): GroupedOpenApi =
 		GroupedOpenApi.builder()
 			.group("v2")
-			.pathsToMatch("/api/v2/**")
+			.pathsToMatch("/v2/**")
 			.addOpenApiCustomizer(versionInfoCustomizer(version = "v2"))
 			.addOperationCustomizer(v2OperationCustomizer())
 			.build()
@@ -190,7 +190,7 @@ class OpenApiConfig(
 		path.startsWith("/v1/me") || path == "/v1/users/lookup" || path.startsWith("/v1/admin")
 
 	private fun isProtectedV2Path(path: String): Boolean =
-		path.startsWith("/api/v2/me") || path == "/api/v2/users/lookup" || path.startsWith("/api/v2/admin")
+		path.startsWith("/v2/me") || path == "/v2/users/lookup" || path.startsWith("/v2/admin")
 
 	companion object {
 		private const val BEARER_AUTH_SCHEME = "bearerAuth"
