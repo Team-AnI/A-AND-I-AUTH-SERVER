@@ -77,6 +77,7 @@ class RequestResponseLoggingFilterTest : FunSpec({
 			.expectStatus().isOk
 
 		val payload = objectMapper.readTree(appender.list.single().formattedMessage)
+		appender.list.single().level.toString() shouldBe "INFO"
 		payload["level"].asText() shouldBe "INFO"
 		payload["logType"].asText() shouldBe "API"
 		payload["message"].asText() shouldBe "HTTP request completed"
@@ -89,7 +90,7 @@ class RequestResponseLoggingFilterTest : FunSpec({
 		payload["response"]["data"]["accessToken"].asText() shouldBe "****"
 		payload["response"]["data"]["refreshToken"].asText() shouldBe "****"
 		payload["http"]["route"].asText() shouldBe "/v2/auth/login/{loginId}"
-		payload["request"]["pathVariables"]["loginId"].asText() shouldBe "han"
+		payload["request"]["pathVariables"]["loginId"].asText() shouldBe "han******"
 		payload["tags"].map { it.asText() } shouldContain "success"
 	}
 
@@ -115,6 +116,7 @@ class RequestResponseLoggingFilterTest : FunSpec({
 			.expectStatus().isUnauthorized
 
 		val payload = objectMapper.readTree(appender.list.single().formattedMessage)
+		appender.list.single().level.toString() shouldBe "WARN"
 		payload["level"].asText() shouldBe "WARN"
 		payload["logType"].asText() shouldBe "API_ERROR"
 		payload["message"].asText() shouldBe "Login failed: Invalid username or password."

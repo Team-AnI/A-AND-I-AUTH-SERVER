@@ -80,8 +80,8 @@ class ApiLogFactory(
 			client = context.client,
 			actor = resolveActor(principal),
 			request = ApiLogRequest(
-				query = context.query,
-				pathVariables = pathVariables,
+				query = sanitizeMap(context.query),
+				pathVariables = sanitizeMap(pathVariables),
 				body = context.requestBody ?: emptyMap<String, Any?>(),
 			),
 			response = response,
@@ -201,6 +201,9 @@ class ApiLogFactory(
 		}
 		return resolved
 	}
+
+	private fun sanitizeMap(source: Map<String, Any?>): Map<String, Any?> =
+		source.mapValues { (key, value) -> MaskingUtil.sanitizePayload(key, value) }
 
 	private fun buildTags(route: String, success: Boolean): List<String> {
 		val segments = route.trim('/').split('/').filter { it.isNotBlank() }

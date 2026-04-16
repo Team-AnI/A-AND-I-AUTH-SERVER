@@ -87,7 +87,7 @@ class RequestResponseLoggingFilter(
 		return runCatching {
 			MaskingUtil.sanitizePayload(objectMapper.readValue(rawBody, Any::class.java))
 		}.getOrElse {
-			mapOf("raw" to rawBody)
+			mapOf("omitted" to "unparseable body omitted")
 		}
 	}
 
@@ -101,7 +101,11 @@ class RequestResponseLoggingFilter(
 			.switchIfEmpty(Mono.just(AnonymousPrincipal))
 			.doOnNext { principal ->
 				val log = apiLogFactory.create(exchange, context, principal)
-				logger.info(serialize(log))
+				when (log.level) {
+					"ERROR" -> logger.error(serialize(log))
+					"WARN" -> logger.warn(serialize(log))
+					else -> logger.info(serialize(log))
+				}
 			}
 			.then()
 	}
@@ -162,7 +166,7 @@ class RequestResponseLoggingFilter(
 			val parsed = runCatching {
 				MaskingUtil.sanitizePayload(objectMapper.readValue(rawBody, Any::class.java))
 			}.getOrElse {
-				rawBody
+				mapOf("omitted" to "unparseable body omitted")
 			}
 			context.markResponseBody(parsed)
 		}
