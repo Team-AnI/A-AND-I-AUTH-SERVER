@@ -22,7 +22,7 @@ jobs:
       POSTGRES_DB: ${{ vars.POSTGRES_DB || 'auth' }}
       POSTGRES_USER: ${{ vars.POSTGRES_USER || 'auth' }}
       BOOTSTRAP_ADMIN_ENABLED: ${{ vars.BOOTSTRAP_ADMIN_ENABLED || 'true' }}
-      APP_CORS_ALLOWED_ORIGINS: ${{ vars.APP_CORS_ALLOWED_ORIGINS || 'https://aandiclub.com,https://admin.aandiclub.com,https://auth.aandiclub.com,https://api.aandiclub.com' }}
+      APP_CORS_ALLOWED_ORIGINS: ${{ format('https://qa.aandiclub.com,{0}', vars.APP_CORS_ALLOWED_ORIGINS || 'https://aandiclub.com,https://admin.aandiclub.com,https://auth.aandiclub.com,https://api.aandiclub.com') }}
       APP_PROFILE_ALLOWED_IMAGE_HOSTS: ${{ vars.APP_PROFILE_ALLOWED_IMAGE_HOSTS || '' }}
       APP_PROFILE_IMAGE_ENABLED: ${{ vars.APP_PROFILE_IMAGE_ENABLED || 'false' }}
       APP_PROFILE_IMAGE_BUCKET: ${{ vars.APP_PROFILE_IMAGE_BUCKET || '' }}
