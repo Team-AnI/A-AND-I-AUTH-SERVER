@@ -38,7 +38,7 @@ class V2ExceptionHandler(
 	@ExceptionHandler(AppException::class)
 	fun handleAppException(ex: AppException, exchange: ServerWebExchange): ResponseEntity<V2ApiResponse<Nothing>> {
 		val error = errorFactory.fromAppException(exchange.request.path.value(), ex)
-		ApiLogContext.get(exchange)?.markFailure(reason = ex.message, error = error.toLogError())
+		ApiLogContext.get(exchange)?.markFailure(reason = error.message, error = error.toLogError())
 		return ResponseEntity
 			.status(ex.errorCode.status)
 			.body(V2ApiResponse.failure(error))
@@ -56,7 +56,7 @@ class V2ExceptionHandler(
 			message = message,
 			value = "INVALID_REQUEST",
 		)
-		ApiLogContext.get(exchange)?.markFailure(reason = message, error = error.toLogError())
+		ApiLogContext.get(exchange)?.markFailure(reason = error.message, error = error.toLogError())
 		return ResponseEntity
 			.status(ErrorCode.INVALID_REQUEST.status)
 			.body(V2ApiResponse.failure(error))
@@ -72,7 +72,7 @@ class V2ExceptionHandler(
 			message = ErrorCode.INVALID_REQUEST.defaultMessage,
 			value = "INVALID_REQUEST",
 		)
-		ApiLogContext.get(exchange)?.markFailure(reason = ErrorCode.INVALID_REQUEST.defaultMessage, error = error.toLogError())
+		ApiLogContext.get(exchange)?.markFailure(reason = error.message, error = error.toLogError())
 		return ResponseEntity
 			.status(ErrorCode.INVALID_REQUEST.status)
 			.body(V2ApiResponse.failure(error))
@@ -88,7 +88,7 @@ class V2ExceptionHandler(
 			message = ErrorCode.INTERNAL_SERVER_ERROR.defaultMessage,
 		)
 		ApiLogContext.get(exchange)?.markFailure(
-			reason = ex.message ?: ErrorCode.INTERNAL_SERVER_ERROR.defaultMessage,
+			reason = error.message,
 			error = error.toLogError(),
 		)
 		return ResponseEntity

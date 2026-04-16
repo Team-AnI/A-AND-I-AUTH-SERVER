@@ -3,6 +3,7 @@ package com.aandiclub.auth.common.error.v2
 import com.aandiclub.auth.common.api.v2.V2ApiError
 import com.aandiclub.auth.common.error.AppException
 import com.aandiclub.auth.common.error.ErrorCode
+import com.aandiclub.auth.common.error.ErrorMessageLocalizer
 import com.aandiclub.auth.common.web.v2.V2ApiPaths
 import org.springframework.stereotype.Component
 
@@ -53,9 +54,9 @@ class V2ErrorFactory {
 		fun toApiError(service: V2ServiceCode): V2ApiError =
 			V2ApiError(
 				code = service.digit * 10000 + category.code * 100 + detail.coerceIn(1, 99),
-				message = message,
+				message = ErrorMessageLocalizer.localize(message),
 				value = value,
-				alert = alert,
+				alert = ErrorMessageLocalizer.localize(alert),
 			)
 	}
 

@@ -15,4 +15,5 @@ app:
   schema-guard:
     enabled: false
   cors:
-    allowed-origins: http://localhost:8080,http://127.0.0.1:8080,https://auth.aandiclub.com,https://api.aandiclub.com
+    allowed-origins: http://localhost:8080,http://127.0.0.1:8080,https://qa.aandiclub.com,https://auth.aandiclub.com,https://api.aandiclub.com
+    allowed-headers: Authorization,Authenticate,Content-Type,Accept,Origin,X-Requested-With,deviceOS,timestamp,salt,appVersion,App-Version,X-App-Version

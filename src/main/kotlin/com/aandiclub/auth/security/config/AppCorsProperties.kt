@@ -6,7 +6,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties
 data class AppCorsProperties(
 	val allowedOrigins: String = "",
 	val allowedMethods: String = "GET,POST,PUT,PATCH,DELETE,OPTIONS",
-	val allowedHeaders: String = "Authorization,Content-Type,Accept,Origin,X-Requested-With",
+	val allowedHeaders: String = "Authorization,Authenticate,Content-Type,Accept,Origin,X-Requested-With,deviceOS,timestamp,salt,appVersion,App-Version,X-App-Version",
 	val exposedHeaders: String = "",
 	val allowCredentials: Boolean = true,
 	val maxAgeSeconds: Long = 3600,

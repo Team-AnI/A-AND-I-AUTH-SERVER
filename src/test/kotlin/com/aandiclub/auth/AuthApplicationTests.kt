@@ -38,7 +38,7 @@ class AuthApplicationTests : StringSpec() {
 				.expectBody()
 				.jsonPath("$.success").isEqualTo(false)
 				.jsonPath("$.error.code").isEqualTo("INVALID_REQUEST")
-				.jsonPath("$.error.message").isEqualTo("Forced validation error.")
+				.jsonPath("$.error.message").isEqualTo("강제 검증 오류입니다.")
 		}
 	}
 }

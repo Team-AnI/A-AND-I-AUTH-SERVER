@@ -119,10 +119,10 @@ class RequestResponseLoggingFilterTest : FunSpec({
 		appender.list.single().level.toString() shouldBe "WARN"
 		payload["level"].asText() shouldBe "WARN"
 		payload["logType"].asText() shouldBe "API_ERROR"
-		payload["message"].asText() shouldBe "Login failed: Invalid username or password."
+		payload["message"].asText() shouldBe "로그인 실패: 아이디 또는 비밀번호가 올바르지 않습니다."
 		payload["response"]["success"].asBoolean() shouldBe false
 		payload["response"]["error"]["code"].asInt() shouldBe 21101
-		payload["response"]["error"]["message"].asText() shouldBe "Invalid username or password."
+		payload["response"]["error"]["message"].asText() shouldBe "아이디 또는 비밀번호가 올바르지 않습니다."
 		payload["request"]["body"]["password"].asText() shouldBe "****"
 		payload["tags"].map { it.asText() } shouldContain "fail"
 	}

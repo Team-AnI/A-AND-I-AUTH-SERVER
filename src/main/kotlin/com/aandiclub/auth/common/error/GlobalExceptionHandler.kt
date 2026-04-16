@@ -17,33 +17,35 @@ class GlobalExceptionHandler(
 
 	@ExceptionHandler(AppException::class)
 	fun handleAppException(ex: AppException, exchange: ServerWebExchange): ResponseEntity<ApiResponse<Nothing>> {
+		val localizedMessage = ErrorMessageLocalizer.localize(ex.message)
 		ApiLogContext.get(exchange)?.markFailure(
-			reason = ex.message,
+			reason = localizedMessage,
 			error = errorFactory.fromAppException(exchange.request.path.value(), ex).toLogError(),
 		)
 		val code = ex.errorCode
 		return ResponseEntity
 			.status(code.status)
-			.body(ApiResponse.failure(code.name, ex.message))
+			.body(ApiResponse.failure(code.name, localizedMessage))
 	}
 
 	@ExceptionHandler(WebExchangeBindException::class)
 	fun handleValidationException(ex: WebExchangeBindException, exchange: ServerWebExchange): ResponseEntity<ApiResponse<Nothing>> {
 		val message = ex.bindingResult.fieldErrors.firstOrNull()?.defaultMessage
 			?: ErrorCode.INVALID_REQUEST.defaultMessage
+		val localizedMessage = ErrorMessageLocalizer.localize(message)
 		ApiLogContext.get(exchange)?.markFailure(
-			reason = message,
+			reason = localizedMessage,
 			error = errorFactory.validation(exchange.request.path.value(), message, "INVALID_REQUEST").toLogError(),
 		)
 		return ResponseEntity
 			.status(ErrorCode.INVALID_REQUEST.status)
-			.body(ApiResponse.failure(ErrorCode.INVALID_REQUEST.name, message))
+			.body(ApiResponse.failure(ErrorCode.INVALID_REQUEST.name, localizedMessage))
 	}
 
 	@ExceptionHandler(ServerWebInputException::class)
 	fun handleInputException(ex: ServerWebInputException, exchange: ServerWebExchange): ResponseEntity<ApiResponse<Nothing>> {
 		ApiLogContext.get(exchange)?.markFailure(
-			reason = ErrorCode.INVALID_REQUEST.defaultMessage,
+			reason = ErrorMessageLocalizer.localize(ErrorCode.INVALID_REQUEST.defaultMessage),
 			error = errorFactory.validation(
 				path = exchange.request.path.value(),
 				message = ErrorCode.INVALID_REQUEST.defaultMessage,
@@ -52,13 +54,13 @@ class GlobalExceptionHandler(
 		)
 		return ResponseEntity
 			.status(ErrorCode.INVALID_REQUEST.status)
-			.body(ApiResponse.failure(ErrorCode.INVALID_REQUEST.name, ErrorCode.INVALID_REQUEST.defaultMessage))
+			.body(ApiResponse.failure(ErrorCode.INVALID_REQUEST.name, ErrorMessageLocalizer.localize(ErrorCode.INVALID_REQUEST.defaultMessage)))
 	}
 
 	@ExceptionHandler(Exception::class)
 	fun handleUnhandledException(ex: Exception, exchange: ServerWebExchange): ResponseEntity<ApiResponse<Nothing>> {
 		ApiLogContext.get(exchange)?.markFailure(
-			reason = ex.message ?: ErrorCode.INTERNAL_SERVER_ERROR.defaultMessage,
+			reason = ErrorMessageLocalizer.localize(ex.message ?: ErrorCode.INTERNAL_SERVER_ERROR.defaultMessage),
 			error = errorFactory.internal(
 				path = exchange.request.path.value(),
 				message = ErrorCode.INTERNAL_SERVER_ERROR.defaultMessage,
@@ -69,7 +71,7 @@ class GlobalExceptionHandler(
 			.body(
 				ApiResponse.failure(
 					ErrorCode.INTERNAL_SERVER_ERROR.name,
-					ErrorCode.INTERNAL_SERVER_ERROR.defaultMessage,
+					ErrorMessageLocalizer.localize(ErrorCode.INTERNAL_SERVER_ERROR.defaultMessage),
 				),
 			)
 	}

@@ -172,22 +172,22 @@ class ApiLogFactory(
 		if (!explicit.isNullOrBlank() && explicit.contains("failed", ignoreCase = true)) {
 			return explicit
 		}
-		val detail = explicit ?: MaskingUtil.sanitizeMessage(errorMessage) ?: "Request processing failed."
+		val detail = explicit ?: MaskingUtil.sanitizeMessage(errorMessage) ?: "요청 처리에 실패했습니다."
 		val segments = route.trim('/').split('/').filter { it.isNotBlank() }
 		val action = segments.lastOrNull().takeUnless { it?.startsWith('{') == true }
 			?: segments.dropLast(1).lastOrNull()
 		val label = when (action) {
-			"login" -> "Login"
-			"refresh" -> "Token refresh"
-			"logout" -> "Logout"
-			"activate" -> "Activation"
-			"lookup" -> "User lookup"
-			"password" -> "Password change"
-			"upload-url" -> "Profile image upload URL issuance"
-			"me" -> "User profile retrieval"
-			else -> "Request"
+			"login" -> "로그인"
+			"refresh" -> "토큰 재발급"
+			"logout" -> "로그아웃"
+			"activate" -> "계정 활성화"
+			"lookup" -> "사용자 조회"
+			"password" -> "비밀번호 변경"
+			"upload-url" -> "프로필 이미지 업로드 URL 발급"
+			"me" -> "내 정보 조회"
+			else -> "요청"
 		}
-		return "$label failed: $detail"
+		return "$label 실패: $detail"
 	}
 
 	private fun resolveRoute(path: String, route: String?, pathVariables: Map<String, Any?>): String {
